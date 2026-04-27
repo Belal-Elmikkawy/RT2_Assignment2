@@ -1,0 +1,10 @@
+# ROS 2 compiled files and logs
+build/
+install/
+log/
+
+# IDE configuration folders
+.vscode/
+.idea/
+*.swp
+*.swo
