@@ -12,8 +12,8 @@
   <depend>rclcpp</depend>
   <depend>sensor_msgs</depend>
   <depend>nav_msgs</depend>
-  <depend>tf2</depend>
-  <depend>tf2_ros</depend>
+  <depend>cv_bridge</depend>
+  <depend>libpcl-all-dev</depend>
   <depend>message_filters</depend>
   <depend>pcl_conversions</depend>
 

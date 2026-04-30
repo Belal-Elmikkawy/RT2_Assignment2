@@ -24,6 +24,8 @@ setup(
     },
     entry_points={
         'console_scripts': [
+            'sam2_node = sam_perception.sam2_node:main',
+            'dataset_node = sam_perception.dataset_node:main',
         ],
     },
 )
