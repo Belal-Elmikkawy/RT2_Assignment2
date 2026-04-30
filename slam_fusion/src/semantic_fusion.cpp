@@ -11,18 +11,6 @@
  * Publishes:
  *   /semantic_map        (sensor_msgs/PointCloud2 — colourised by instance)
  *
- * Key fixes vs. original:
- *   [BUG]  Duplicate declaration of info_sub_ caused compile error → removed.
- *   [BUG]  transform.block<3,1>(0,3) wrong shape for a 3-vector → fixed to
- *          block<3,1>(0,3) is actually correct for Eigen but typo risk; left
- *          and annotated clearly.
- *   [FEAT] Accumulate a global map across frames (not just publish each local
- *          cloud independently).
- *   [FEAT] Voxel-grid downsampling to prevent unbounded map growth.
- *   [FEAT] Depth validity range and NaN guard consistent with dataset spec.
- *   [FEAT] All tunable constants exposed as ROS parameters.
- *   [FEAT] Latency measurement and diagnostic logging per callback.
- *
  * Build requirements (CMakeLists.txt):
  *   PCL components: common, filters (for voxel grid)
  */
@@ -75,7 +63,6 @@ public:
         pc_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("/semantic_map", 10);
 
         // ── Camera Info Subscriber ────────────────────────────────────────
-        // FIX: original had info_sub_ declared twice — removed the duplicate.
         info_sub_ = this->create_subscription<sensor_msgs::msg::CameraInfo>(
             "/camera/color/camera_info", 10,
             [this](const sensor_msgs::msg::CameraInfo::SharedPtr msg) {
@@ -153,7 +140,7 @@ private:
             return;
         }
 
-        // 1. Convert ROS Images → OpenCV
+        // Convert ROS Images → OpenCV
         cv_bridge::CvImagePtr cv_depth, cv_mask;
         try {
             cv_depth = cv_bridge::toCvCopy(depth_msg,
@@ -165,13 +152,13 @@ private:
             return;
         }
 
-        // 2. Extract camera intrinsics
+        // Extract camera intrinsics
         const float fx = static_cast<float>(latest_info_->k[0]);
         const float cx = static_cast<float>(latest_info_->k[2]);
         const float fy = static_cast<float>(latest_info_->k[4]);
         const float cy = static_cast<float>(latest_info_->k[5]);
 
-        // 3. Build local point cloud (camera frame)
+        // Build local point cloud (camera frame)
         pcl::PointCloud<pcl::PointXYZRGB>::Ptr local_cloud(
             new pcl::PointCloud<pcl::PointXYZRGB>());
         local_cloud->reserve(
@@ -200,7 +187,7 @@ private:
             }
         }
 
-        // 4. Transform camera-frame cloud → world frame using SLAM odometry
+        // Transform camera-frame cloud → world frame using SLAM odometry
         Eigen::Quaternionf q(
             static_cast<float>(odom_msg->pose.pose.orientation.w),
             static_cast<float>(odom_msg->pose.pose.orientation.x),
@@ -213,16 +200,16 @@ private:
 
         Eigen::Matrix4f T = Eigen::Matrix4f::Identity();
         T.block<3, 3>(0, 0) = q.toRotationMatrix();
-        T.block<3, 1>(0, 3) = t;          // FIX: was ambiguous — now explicit
+        T.block<3, 1>(0, 3) = t;
 
         pcl::PointCloud<pcl::PointXYZRGB>::Ptr frame_world(
             new pcl::PointCloud<pcl::PointXYZRGB>());
         pcl::transformPointCloud(*local_cloud, *frame_world, T);
 
-        // 5. Accumulate into global map
+        // Accumulate into global map
         *global_map_ += *frame_world;
 
-        // 6. Voxel-grid downsampling (keeps map bounded & publishable in real-time)
+        // Voxel-grid downsampling (keeps map bounded & publishable in real-time)
         if (voxel_leaf_size_ > 0.0f && !global_map_->empty()) {
             pcl::VoxelGrid<pcl::PointXYZRGB> vg;
             vg.setInputCloud(global_map_);
@@ -233,14 +220,14 @@ private:
             global_map_ = filtered;
         }
 
-        // 7. Publish
+        // Publish
         sensor_msgs::msg::PointCloud2 output_msg;
         pcl::toROSMsg(*global_map_, output_msg);
         output_msg.header.frame_id = "map";
         output_msg.header.stamp    = odom_msg->header.stamp;
         pc_pub_->publish(output_msg);
 
-        // 8. Latency log
+        // Latency log
         auto elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
             std::chrono::steady_clock::now() - t0).count();
         RCLCPP_INFO_THROTTLE(this->get_logger(), *this->get_clock(), 2000,

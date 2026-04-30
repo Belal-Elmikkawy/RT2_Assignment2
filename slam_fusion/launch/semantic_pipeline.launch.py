@@ -3,12 +3,12 @@ Semantic SLAM Pipeline Launch File  (ROS 2 Jazzy / Ubuntu 24.04)
 ───────────────────────────────────────────────────────────────────────────
 Launches the complete SAM2 + RTAB-Map semantic SLAM pipeline:
 
-  1. virtual_camera     — dataset_node           (RGB + Depth + CameraInfo)
-  2. sam2_perception    — sam2_node              (per-pixel instance masks)
-  3. static_tf          — tf2_ros                (base_link → camera frame)
-  4. rgbd_odometry      — rtabmap_odom           (visual odometry / pose)
-  5. semantic_fusion    — semantic_fusion_node   (3D semantic point cloud)
-  6. rviz2              — rviz2                  (live visualizer)
+  virtual_camera     — dataset_node           (RGB + Depth + CameraInfo)
+  sam2_perception    — sam2_node              (per-pixel instance masks)
+  static_tf          — tf2_ros                (base_link → camera frame)
+  rgbd_odometry      — rtabmap_odom           (visual odometry / pose)
+  semantic_fusion    — semantic_fusion_node   (3D semantic point cloud)
+  rviz2              — rviz2                  (live visualizer)
 """
 
 from launch import LaunchDescription
@@ -59,7 +59,7 @@ def generate_launch_description():
 
     # ── Nodes ─────────────────────────────────────────────────────────────
 
-    # 1. Dataset Publisher (virtual camera)
+    # Dataset Publisher (virtual camera)
     dataset_node = Node(
         package='sam_perception',
         executable='dataset_node',
@@ -74,7 +74,7 @@ def generate_launch_description():
         }]
     )
 
-    # 2. SAM2 Perception Node
+    # SAM2 Perception Node
     sam2_node = Node(
         package='sam_perception',
         executable='sam2_node',
@@ -87,7 +87,7 @@ def generate_launch_description():
         }]
     )
 
-    # 3. Static TF: base_link → camera_color_optical_frame
+    # Static TF: base_link → camera_color_optical_frame
     #    (Standard ROS camera convention: X-right, Y-down, Z-forward)
     static_tf = Node(
         package='tf2_ros',
@@ -101,7 +101,7 @@ def generate_launch_description():
         ]
     )
 
-    # 4. RTAB-Map RGBD Odometry (visual odometry backend)
+    # RTAB-Map RGBD Odometry (visual odometry backend)
     rtabmap_odom = Node(
         package='rtabmap_odom',
         executable='rgbd_odometry',
@@ -122,7 +122,7 @@ def generate_launch_description():
         ]
     )
 
-    # 5. Semantic Fusion Node (C++)
+    # Semantic Fusion Node (C++)
     fusion_node = Node(
         package='slam_fusion',
         executable='semantic_fusion_node',
@@ -136,7 +136,7 @@ def generate_launch_description():
         }]
     )
 
-    # 6. RViz2 — started 5 s after other nodes so the map frame is already published
+    # RViz2 — started 5 s after other nodes so the map frame is already published
     rviz_config = PathJoinSubstitution([
         FindPackageShare('slam_fusion'), 'rviz', 'mapping.rviz'
     ])
@@ -163,7 +163,7 @@ def generate_launch_description():
         declare_kf_interval,
         declare_voxel,
         # Log
-        LogInfo(msg='Starting SAM2 + RTAB-Map Semantic SLAM pipeline (ROS 2 Jazzy)...'),
+        LogInfo(msg='Starting SAM2 + RTAB-Map Semantic SLAM pipeline (ROS 2 Humble)...'),
         # Nodes (order matters: data source first)
         dataset_node,
         static_tf,

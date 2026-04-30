@@ -4,14 +4,6 @@ Dataset Publisher Node — ROS 2 Humble
 ────────────────────────────────────────────────────────────────────────────
 Replays a TUM RGB-D (or ScanNet) dataset as a virtual camera by publishing
 synchronized RGB, depth, and CameraInfo messages on standard ROS 2 topics.
-
-Improvements vs. original:
-  • RGB-depth temporal alignment via association.txt    (if present).
-  • Per-dataset camera intrinsics loaded from a YAML  file or auto-selected.
-  • Publishes depth_registered topic expected by RTAB-Map.
-  • Graceful shutdown when sequence ends (publishes end-of-sequence signal).
-  • Added 'loop' parameter to replay dataset continuously for testing.
-  • Added 'dataset_type' parameter ('tum' | 'scannet') to switch defaults.
 """
 
 import rclpy
@@ -137,7 +129,7 @@ class DatasetPublisherNode(Node):
                 self.timer.cancel()
                 return
 
-        # 1. Read images
+        # Read images
         rgb_img   = cv2.imread(self.rgb_files[self.current_frame],   cv2.IMREAD_COLOR)
         depth_img = cv2.imread(self.depth_files[self.current_frame], cv2.IMREAD_UNCHANGED)  # 16-bit
 
@@ -146,10 +138,10 @@ class DatasetPublisherNode(Node):
             self.current_frame += 1
             return
 
-        # 2. Scale depth to metres (float32)
+        # Scale depth to metres (float32)
         depth_float = depth_img.astype(np.float32) / self.scale_factor
 
-        # 3. Synchronized ROS header (same stamp for SLAM synchronization)
+        # Synchronized ROS header (same stamp for SLAM synchronization)
         current_time = self.get_clock().now().to_msg()
 
         rgb_msg          = self.bridge.cv2_to_imgmsg(rgb_img, encoding="bgr8")
@@ -162,7 +154,7 @@ class DatasetPublisherNode(Node):
 
         info_msg = self._build_camera_info(rgb_msg.header)
 
-        # 4. Publish
+        # Publish
         self.rgb_pub.publish(rgb_msg)
         self.depth_pub.publish(depth_msg)
         self.depthreg_pub.publish(depth_msg)   # mirrored for RTAB-Map compatibility

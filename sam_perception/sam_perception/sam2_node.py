@@ -5,16 +5,6 @@ SAM2 Perception Node — ROS 2 Humble
 Subscribes to a raw RGB image stream, runs SAM2 automatic mask generation on
 every N-th frame (keyframe throttling), and publishes a uint8 label map on
 /sam2/semantic_mask where pixel value = instance ID (1-254, 0 = background).
-
-Key fixes vs. original:
-  • label_map was used before being created  → now allocated each callback.
-  • cv2_to_imgms typo                         → cv2_to_imgmsg (correct).
-  • mask_msg published & latency logged inside
-    the per-mask loop                         → moved outside the loop.
-  • No keyframe throttling                    → added `keyframe_interval` param.
-  • Checkpoint path hard-coded (& typo)       → now a ROS parameter.
-  • No device fall-back                       → falls back to CPU gracefully.
-  • No torch.no_grad / half-precision        → added for real-time speedup.
 """
 
 import rclpy
