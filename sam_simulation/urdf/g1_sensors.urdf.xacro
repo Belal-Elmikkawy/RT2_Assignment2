@@ -1,0 +1,67 @@
+<?xml version="1.0"?>
+<robot name="g1_humanoid_sim" xmlns:xacro="http://ros.org/wiki/xacro">
+
+  <!-- Base Link (The Robot's Body) -->
+  <link name="base_link">
+    <visual>
+      <geometry><cylinder radius="0.2" length="1.0"/></geometry>
+      <material name="gray"><color rgba="0.5 0.5 0.5 1"/></material>
+    </visual>
+    <collision><geometry><cylinder radius="0.2" length="1.0"/></geometry></collision>
+    <inertial><mass value="10.0"/><inertia ixx="0.1" ixy="0" ixz="0" iyy="0.1" iyz="0" izz="0.1"/></inertial>
+  </link>
+
+  <!-- RGB-D Camera Link (Head) -->
+  <link name="camera_link"/>
+  <joint name="camera_joint" type="fixed">
+    <parent link="base_link"/>
+    <child link="camera_link"/>
+    <origin xyz="0.1 0 0.5" rpy="0 0 0"/>
+  </joint>
+
+  <!-- LiDAR Link (Torso) -->
+  <link name="lidar_link"/>
+  <joint name="lidar_joint" type="fixed">
+    <parent link="base_link"/>
+    <child link="lidar_link"/>
+    <origin xyz="0 0 0.2" rpy="0 0 0"/>
+  </joint>
+
+  <!-- ================= GAZEBO PLUGINS ================= -->
+
+  <!-- RGB-D Camera Plugin -->
+  <gazebo reference="camera_link">
+    <sensor name="camera" type="depth">
+      <always_on>true</always_on>
+      <update_rate>15.0</update_rate>
+      <plugin name="camera_controller" filename="libgazebo_ros_camera.so">
+        <ros>
+          <remapping>~/image_raw:=/camera/color/image_raw</remapping>
+          <remapping>~/depth/image_raw:=/camera/depth/image_raw</remapping>
+          <remapping>~/camera_info:=/camera/color/camera_info</remapping>
+        </ros>
+        <camera_name>camera</camera_name>
+        <frame_name>camera_depth_optical_frame</frame_name>
+      </plugin>
+    </sensor>
+  </gazebo>
+
+  <!-- 2D LiDAR Plugin (Cartographer uses this) -->
+  <gazebo reference="lidar_link">
+    <sensor name="lidar" type="ray">
+      <always_on>true</always_on>
+      <visualize>true</visualize>
+      <update_rate>10.0</update_rate>
+      <ray>
+        <scan><horizontal><samples>360</samples><resolution>1</resolution><min_angle>-3.14</min_angle><max_angle>3.14</max_angle></horizontal></scan>
+        <range><min>0.12</min><max>10.0</max></range>
+      </ray>
+      <plugin name="lidar_controller" filename="libgazebo_ros_ray_sensor.so">
+        <ros><remapping>~/out:=/scan</remapping></ros>
+        <output_type>sensor_msgs/LaserScan</output_type>
+        <frame_name>lidar_link</frame_name>
+      </plugin>
+    </sensor>
+  </gazebo>
+
+</robot>
