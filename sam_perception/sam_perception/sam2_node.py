@@ -128,10 +128,12 @@ class Sam2PerceptionNode(Node):
         elapsed_ms = (self.get_clock().now() - start_time).nanoseconds / 1e6
         from std_msgs.msg import Float32
         self.latency_pub_.publish(Float32(data=float(elapsed_ms)))
-        self.get_logger().info(
-            f"Published mask: {len(masks)} objects | inference {elapsed_ms:.1f} ms "
-            f"(frame #{self._frame_counter})"
-        )
+        # Log once every 10 processed frames to avoid terminal spam
+        if self._frame_counter % (self._keyframe_interval * 10) == 0:
+            self.get_logger().info(
+                f"Published mask: {len(masks)} objects | inference {elapsed_ms:.1f} ms "
+                f"(frame #{self._frame_counter})"
+            )
 
 
 def main(args=None):

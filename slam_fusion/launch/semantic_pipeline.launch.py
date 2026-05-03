@@ -107,6 +107,7 @@ def generate_launch_description():
         executable='rgbd_odometry',
         name='rgbd_odometry',
         output='screen',
+        arguments=['--ros-args', '--log-level', 'WARN'],
         parameters=[{
             'frame_id':    'base_link',
             'approx_sync': True,

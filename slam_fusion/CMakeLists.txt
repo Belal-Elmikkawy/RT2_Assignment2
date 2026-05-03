@@ -27,7 +27,9 @@ add_definitions(${PCL_DEFINITIONS})
 # ── Executable ────────────────────────────────────────────────────────────
 add_executable(semantic_fusion_node src/semantic_fusion.cpp)
 
-target_link_libraries(semantic_fusion_node ${PCL_LIBRARIES})
+# Fix for Conda environments where Conda's libcurl masks system libcurl
+find_library(SYSTEM_CURL_LIB curl PATHS /usr/lib/x86_64-linux-gnu NO_DEFAULT_PATH)
+target_link_libraries(semantic_fusion_node ${PCL_LIBRARIES} ${SYSTEM_CURL_LIB})
 
 ament_target_dependencies(semantic_fusion_node
   rclcpp
