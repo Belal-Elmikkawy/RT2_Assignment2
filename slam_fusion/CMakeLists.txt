@@ -48,7 +48,14 @@ install(TARGETS semantic_fusion_node
 install(DIRECTORY
   launch
   rviz
+  config
   DESTINATION share/${PROJECT_NAME}
+)
+
+install(PROGRAMS
+  scripts/tf_to_odom.py
+  RENAME tf_to_odom
+  DESTINATION lib/${PROJECT_NAME}
 )
 
 ament_package()

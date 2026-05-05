@@ -10,6 +10,7 @@ every N-th frame (keyframe throttling), and publishes a uint8 label map on
 import rclpy
 from rclpy.node import Node
 from sensor_msgs.msg import Image
+from std_msgs.msg import Float32
 from cv_bridge import CvBridge
 import cv2
 import numpy as np
@@ -51,9 +52,7 @@ class Sam2PerceptionNode(Node):
         # Publish the resulting 2D Semantic Mask
         self.publisher_ = self.create_publisher(Image, '/sam2/semantic_mask', 10)
 
-        # Publish latency diagnostics as a Float32 (optional — see slam_fusion)
-        # (a std_msgs/Float32 publisher for '/sam2/inference_latency_ms')
-        from std_msgs.msg import Float32
+        # Publish latency diagnostics as a Float32
         self.latency_pub_ = self.create_publisher(Float32, '/sam2/inference_latency_ms', 10)
 
         # ── Model Initialization ──────────────────────────────────────────
@@ -126,7 +125,6 @@ class Sam2PerceptionNode(Node):
 
         # ── Latency diagnostics ───────────────────────────────────────────
         elapsed_ms = (self.get_clock().now() - start_time).nanoseconds / 1e6
-        from std_msgs.msg import Float32
         self.latency_pub_.publish(Float32(data=float(elapsed_ms)))
         # Log once every 10 processed frames to avoid terminal spam
         if self._frame_counter % (self._keyframe_interval * 10) == 0:
