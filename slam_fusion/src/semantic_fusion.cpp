@@ -32,6 +32,11 @@
 #include <pcl/common/transforms.h>
 #include <pcl/filters/voxel_grid.h>
 
+#include <tf2_ros/buffer.h>
+#include <tf2_ros/transform_listener.h>
+#include <tf2_eigen/tf2_eigen.hpp>
+#include <geometry_msgs/msg/transform_stamped.hpp>
+
 #include <Eigen/Dense>
 #include <chrono>
 #include <cmath>
@@ -58,6 +63,10 @@ public:
 
         // Accumulated global semantic map (persists across callbacks)
         global_map_ = std::make_shared<pcl::PointCloud<pcl::PointXYZRGB>>();
+
+        // ── TF Initialization ─────────────────────────────────────────────
+        tf2_buffer_ = std::make_shared<tf2_ros::Buffer>(this->get_clock());
+        tf2_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf2_buffer_);
 
         // ── Publishers ────────────────────────────────────────────────────
         pc_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("/semantic_map", 10);
@@ -106,6 +115,9 @@ private:
     std::shared_ptr<message_filters::Synchronizer<SyncPolicy>> sync_;
 
     rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pc_pub_;
+
+    std::shared_ptr<tf2_ros::Buffer> tf2_buffer_;
+    std::shared_ptr<tf2_ros::TransformListener> tf2_listener_;
 
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr global_map_;
 
@@ -187,7 +199,30 @@ private:
             }
         }
 
-        // Transform camera-frame cloud → world frame using SLAM odometry
+        // ── Sensor to Base Transform ──────────────────────────────────────
+        std::string child_frame = odom_msg->child_frame_id;
+        if (child_frame.empty()) {
+            child_frame = depth_msg->header.frame_id; // fallback if SLAM doesn't specify child frame
+        }
+
+        geometry_msgs::msg::TransformStamped t_sensor_to_base;
+        try {
+            // Lookup transform from camera to SLAM child frame
+            t_sensor_to_base = tf2_buffer_->lookupTransform(
+                child_frame,                 // Target frame
+                depth_msg->header.frame_id,  // Source frame
+                tf2_ros::fromMsg(depth_msg->header.stamp), // Time
+                tf2::Duration(std::chrono::milliseconds(100))); // Timeout
+        } catch (const tf2::TransformException & ex) {
+            RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 2000,
+                "TF lookup failed: %s", ex.what());
+            return;
+        }
+
+        // Convert to Eigen
+        Eigen::Isometry3f T_sensor_to_base = tf2::transformToEigen(t_sensor_to_base.transform).cast<float>();
+
+        // ── Base to World Transform (Odometry) ────────────────────────────
         Eigen::Quaternionf q(
             static_cast<float>(odom_msg->pose.pose.orientation.w),
             static_cast<float>(odom_msg->pose.pose.orientation.x),
@@ -198,13 +233,16 @@ private:
             static_cast<float>(odom_msg->pose.pose.position.y),
             static_cast<float>(odom_msg->pose.pose.position.z));
 
-        Eigen::Matrix4f T = Eigen::Matrix4f::Identity();
-        T.block<3, 3>(0, 0) = q.toRotationMatrix();
-        T.block<3, 1>(0, 3) = t;
+        Eigen::Isometry3f T_base_to_world = Eigen::Isometry3f::Identity();
+        T_base_to_world.linear() = q.toRotationMatrix();
+        T_base_to_world.translation() = t;
+
+        // ── Combined Transform ────────────────────────────────────────────
+        Eigen::Matrix4f T_total = (T_base_to_world * T_sensor_to_base).matrix();
 
         pcl::PointCloud<pcl::PointXYZRGB>::Ptr frame_world(
             new pcl::PointCloud<pcl::PointXYZRGB>());
-        pcl::transformPointCloud(*local_cloud, *frame_world, T);
+        pcl::transformPointCloud(*local_cloud, *frame_world, T_total);
 
         // Accumulate into global map
         *global_map_ += *frame_world;
@@ -223,7 +261,7 @@ private:
         // Publish
         sensor_msgs::msg::PointCloud2 output_msg;
         pcl::toROSMsg(*global_map_, output_msg);
-        output_msg.header.frame_id = "map";
+        output_msg.header.frame_id = "odom";
         output_msg.header.stamp    = odom_msg->header.stamp;
         pc_pub_->publish(output_msg);
 

@@ -34,16 +34,37 @@ def generate_launch_description():
         f'file://{g1_share_dir}/meshes'
     )
 
-    # Convert all moving joints to fixed joints! 
-    # This locks the robot in a rigid standing pose and allows robot_state_publisher 
-    # to publish the entire TF tree statically without needing joint_state_publisher.
-    robot_desc = robot_desc.replace('type="revolute"', 'type="fixed"')
-    robot_desc = robot_desc.replace('type="continuous"', 'type="fixed"')
-
     import re
     # Strip all complex STL collision meshes from the URDF to prevent Gazebo from crashing
-    # when initializing physics for the massive merged static body.
     robot_desc = re.sub(r'<collision>.*?</collision>', '', robot_desc, flags=re.DOTALL)
+
+    animated_joints = [
+        'left_hip_pitch_joint', 'left_knee_joint', 'left_ankle_pitch_joint',
+        'right_hip_pitch_joint', 'right_knee_joint', 'right_ankle_pitch_joint',
+        'left_shoulder_pitch_joint', 'left_elbow_joint',
+        'right_shoulder_pitch_joint', 'right_elbow_joint'
+    ]
+
+    # Convert all moving joints to fixed EXCEPT the animated ones.
+    # This prevents the waist, spine, and sideways hip joints from going loose and flapping 
+    # around under centrifugal force when turning.
+    def freeze_unused_joints(match):
+        joint_name = match.group(1)
+        if joint_name in animated_joints:
+            return match.group(0) # Keep it revolute/continuous
+        else:
+            return match.group(0).replace('type="revolute"', 'type="fixed"').replace('type="continuous"', 'type="fixed"')
+
+    robot_desc = re.sub(r'<joint\s+name="([^"]+)"\s+type="(?:revolute|continuous)">', freeze_unused_joints, robot_desc)
+
+    # Add ros2_control tags for the walking animation
+    ros2_control_xml = '<ros2_control name="GazeboSystem" type="system"><hardware><plugin>gazebo_ros2_control/GazeboSystem</plugin></hardware>'
+    for j in animated_joints:
+        ros2_control_xml += f'<joint name="{j}"><command_interface name="position"/><state_interface name="position"/></joint>'
+    ros2_control_xml += '</ros2_control>'
+
+    controllers_yaml = os.path.join(get_package_share_directory('sam_simulation'), 'config', 'g1_controllers.yaml')
+
 
     # Sensor plugins and Planar Move plugin for keyboard control
     sensor_plugins = """
@@ -86,6 +107,12 @@ def generate_launch_description():
   </gazebo>
 
   <gazebo>
+    <plugin filename="libgazebo_ros2_control.so" name="gazebo_ros2_control">
+      <parameters>{controllers_yaml}</parameters>
+    </plugin>
+  </gazebo>
+
+  <gazebo>
     <plugin name="object_controller" filename="libgazebo_ros_planar_move.so">
       <ros><remapping>cmd_vel:=cmd_vel</remapping><remapping>odom:=odom</remapping></ros>
       <update_rate>100.0</update_rate>
@@ -117,7 +144,9 @@ def generate_launch_description():
     <origin xyz="0 0 0.8" rpy="0 0 0"/>
   </joint>
 """
-    robot_desc = robot_desc.replace('</robot>', sensor_plugins + '\n</robot>')
+    # Use f-string to inject the parameters path into the plugin xml
+    sensor_plugins = sensor_plugins.format(controllers_yaml=controllers_yaml)
+    robot_desc = robot_desc.replace('</robot>', ros2_control_xml + sensor_plugins + '\n</robot>')
 
     # Publish the combined robot description (G1 body + sensor plugins)
     robot_state_publisher = Node(
@@ -142,8 +171,30 @@ def generate_launch_description():
         )]
     )
 
+    # Controller managers to actuate the joints in Gazebo
+    joint_state_broadcaster_spawner = Node(
+        package='controller_manager',
+        executable='spawner',
+        arguments=['joint_state_broadcaster', '--controller-manager', '/controller_manager'],
+    )
+    forward_position_controller_spawner = Node(
+        package='controller_manager',
+        executable='spawner',
+        arguments=['forward_position_controller', '--controller-manager', '/controller_manager'],
+    )
+
+    # Gait animator node to convert cmd_vel into walking joint commands
+    gait_animator_node = Node(
+        package='sam_simulation',
+        executable='gait_animator.py',
+        name='gait_animator'
+    )
+
     return LaunchDescription([
         gazebo,
         robot_state_publisher,
         spawn_entity,
+        joint_state_broadcaster_spawner,
+        forward_position_controller_spawner,
+        gait_animator_node
     ])

@@ -26,16 +26,16 @@ class Sam2PerceptionNode(Node):
 
         # ── ROS Parameters ────────────────────────────────────────────────
         self.declare_parameter("checkpoint",
-                               "checkpoints/sam2.1_hiera_small.pt")   # typo fixed: samll→small
+                               "/opt/sam2/checkpoints/sam2.1_hiera_small.pt")
         self.declare_parameter("model_cfg",
                                "configs/sam2.1/sam2.1_hiera_s.yaml")
         self.declare_parameter("keyframe_interval", 3)   # process every 3rd frame
-        self.declare_parameter("use_half_precision", True)
+        self.declare_parameter("use_half_precision", False)
 
-        checkpoint   = self.get_parameter("checkpoint").get_parameter_value().string_value
-        model_cfg    = self.get_parameter("model_cfg").get_parameter_value().string_value
-        kf_interval  = self.get_parameter("keyframe_interval").get_parameter_value().integer_value
-        use_half     = self.get_parameter("use_half_precision").get_parameter_value().bool_value
+        checkpoint = self.get_parameter("checkpoint").get_parameter_value().string_value
+        model_cfg = self.get_parameter("model_cfg").get_parameter_value().string_value
+        kf_interval = self.get_parameter("keyframe_interval").get_parameter_value().integer_value
+        use_half = self.get_parameter("use_half_precision").get_parameter_value().bool_value
 
         # ── Communication Setup ───────────────────────────────────────────
         self.bridge = CvBridge()

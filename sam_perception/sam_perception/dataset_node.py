@@ -76,31 +76,43 @@ class DatasetPublisherNode(Node):
         self.done_pub  = self.create_publisher(Bool,        '/dataset/sequence_done',    1)
         self.bridge    = CvBridge()
 
-        # ── Load file lists ─────────────────────────────────────────────────
-        self.rgb_files   = sorted(glob.glob(os.path.join(dataset_path, 'rgb',   '*.png')))
-        self.depth_files = sorted(glob.glob(os.path.join(dataset_path, 'depth', '*.png')))
+        raw_rgb = sorted(glob.glob(os.path.join(dataset_path, 'rgb', '*.png')))
+        raw_depth = sorted(glob.glob(os.path.join(dataset_path, 'depth', '*.png')))
 
-        if not self.rgb_files or not self.depth_files:
-            self.get_logger().error(
-                f"FATAL: Could not find images in {dataset_path}. "
-                "Check your path and that rgb/ and depth/ subdirectories exist!"
-            )
+        if not raw_rgb or not raw_depth:
+            self.get_logger().error(f"FATAL: Could not find images in {dataset_path}")
             return
 
-        if len(self.rgb_files) != len(self.depth_files):
-            self.get_logger().warn(
-                f"RGB ({len(self.rgb_files)}) and depth ({len(self.depth_files)}) "
-                "frame counts differ — using min length."
-            )
+        def get_time(path):
+            return float(os.path.basename(path).replace('.png', ''))
 
-        self._total_frames = min(len(self.rgb_files), len(self.depth_files))
+        self.rgb_files = []
+        self.depth_files = []
+
+        # Associate each RGB frame with the closest Depth frame in time
+        for rgb_p in raw_rgb:
+            t_rgb = get_time(rgb_p)
+            closest_depth = min(raw_depth, key=lambda d: abs(get_time(d) - t_rgb))
+            if abs(get_time(closest_depth) - t_rgb) < 0.05:  # within 50ms
+                self.rgb_files.append(rgb_p)
+                self.depth_files.append(closest_depth)
+
+        self._total_frames = len(self.rgb_files)
         self.current_frame = 0
         self.timer = self.create_timer(1.0 / fps, self.timer_callback)
 
-        self.get_logger().info(
-            f"Dataset Publisher ready: {self._total_frames} frames @ {fps} FPS | "
-            f"type={ds_type} | scale={self.scale_factor}"
-        )
+        msg = f"Dataset Publisher ready: {self._total_frames} frames @ {fps} FPS | type={ds_type} | scale={self.scale_factor}"
+        self.get_logger().info(msg)
+        
+        # Write debug info to a file mapped to the host
+        try:
+            with open('/ros2_ws/src/debug_dataset.log', 'w') as f:
+                f.write("DATASET NODE STARTED SUCCESSFULLY\n")
+                f.write(f"Path: {dataset_path}\n")
+                f.write(msg + "\n")
+                f.write(f"First RGB file: {self.rgb_files[0] if self.rgb_files else 'NONE'}\n")
+        except Exception as e:
+            pass
 
     # ─────────────────────────────────────────────────────────────────────────
     def _build_camera_info(self, header) -> CameraInfo:
@@ -138,8 +150,9 @@ class DatasetPublisherNode(Node):
             self.current_frame += 1
             return
 
-        # Scale depth to metres (float32)
+        # Scale depth to metres (float32) and set invalid depth (0) to NaN
         depth_float = depth_img.astype(np.float32) / self.scale_factor
+        depth_float[depth_float == 0.0] = np.nan
 
         # Synchronized ROS header (same stamp for SLAM synchronization)
         current_time = self.get_clock().now().to_msg()
@@ -150,7 +163,7 @@ class DatasetPublisherNode(Node):
 
         depth_msg        = self.bridge.cv2_to_imgmsg(depth_float, encoding="32FC1")
         depth_msg.header.stamp    = current_time
-        depth_msg.header.frame_id = "camera_depth_optical_frame"
+        depth_msg.header.frame_id = "camera_color_optical_frame"
 
         info_msg = self._build_camera_info(rgb_msg.header)
 

@@ -13,6 +13,9 @@ find_package(nav_msgs REQUIRED)
 find_package(cv_bridge REQUIRED)
 find_package(message_filters REQUIRED)
 find_package(pcl_conversions REQUIRED)
+find_package(tf2_ros REQUIRED)
+find_package(tf2_eigen REQUIRED)
+find_package(tf2_geometry_msgs REQUIRED)
 
 # ── PCL (add 'filters' for VoxelGrid — was missing in original) ────────────
 if(POLICY CMP0144)
@@ -38,6 +41,9 @@ ament_target_dependencies(semantic_fusion_node
   cv_bridge
   message_filters
   pcl_conversions
+  tf2_ros
+  tf2_eigen
+  tf2_geometry_msgs
 )
 
 # ── Install ───────────────────────────────────────────────────────────────

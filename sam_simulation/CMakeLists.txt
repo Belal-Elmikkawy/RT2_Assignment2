@@ -27,7 +27,13 @@ install(DIRECTORY
   launch
   urdf
   worlds
+  config
   DESTINATION share/${PROJECT_NAME}
+)
+
+install(PROGRAMS
+  scripts/gait_animator.py
+  DESTINATION lib/${PROJECT_NAME}
 )
 
 ament_package()
