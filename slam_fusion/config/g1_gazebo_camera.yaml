@@ -1,0 +1,26 @@
+%YAML:1.0
+
+# Camera parameters
+Camera.type: "Pinhole"
+Camera.fx: 381.36   # REPLACE WITH YOUR GAZEBO CAMERA FX
+Camera.fy: 381.36   # REPLACE WITH YOUR GAZEBO CAMERA FY
+Camera.cx: 320.5    # REPLACE WITH YOUR GAZEBO CAMERA CX
+Camera.cy: 240.5    # REPLACE WITH YOUR GAZEBO CAMERA CY
+
+Camera.width: 640
+Camera.height: 480
+
+Camera.fps: 30.0
+
+# Color order of the images (0: BGR, 1: RGB)
+Camera.RGB: 1
+
+# Depth baseline times fx
+Camera.bf: 40.0     # Baseline (m) * fx. E.g., for 0.05m baseline: 0.05 * fx
+
+# ORB Parameters (Leave these as default)
+ORBextractor.nFeatures: 1000
+ORBextractor.scaleFactor: 1.2
+ORBextractor.nLevels: 8
+ORBextractor.iniThFAST: 20
+ORBextractor.minThFAST: 7

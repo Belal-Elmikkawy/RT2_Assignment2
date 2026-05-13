@@ -1,0 +1,4 @@
+DATASET NODE STARTED SUCCESSFULLY
+Path: /workspace/datasets/TUM/rgbd_dataset_freiburg1_desk
+Dataset Publisher ready: 596 frames @ 5.0 FPS | type=tum_fr1 | scale=5000.0
+First RGB file: /workspace/datasets/TUM/rgbd_dataset_freiburg1_desk/rgb/1305031453.359684.png

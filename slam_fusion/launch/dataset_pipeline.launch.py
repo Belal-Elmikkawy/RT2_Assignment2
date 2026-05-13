@@ -6,19 +6,22 @@ from launch_ros.substitutions import FindPackageShare
 from launch.substitutions import PathJoinSubstitution
 
 def generate_launch_description():
-    # 1. Dataset Player
-    dataset_player = Node(
-        package='sam_perception',
-        executable='dataset_node',
-        name='dataset_publisher',
-        output='screen',
-        prefix='xterm -T "Dataset Publisher" -hold -e',
-        parameters=[{
-            'dataset_path': '/workspace/datasets/TUM/rgbd_dataset_freiburg1_desk',
-            'dataset_type': 'tum_fr1',
-            'fps': 30.0,
-            'loop': True
-        }]
+    # 1. Dataset Player (Delayed by 12 seconds to wait for ORB-SLAM3 Vocabulary to load)
+    dataset_player = TimerAction(
+        period=12.0,
+        actions=[Node(
+            package='sam_perception',
+            executable='dataset_node',
+            name='dataset_publisher',
+            output='screen',
+            prefix='xterm -T "Dataset Publisher" -hold -e',
+            parameters=[{
+                'dataset_path': '/workspace/datasets/TUM/rgbd_dataset_freiburg1_desk',
+                'dataset_type': 'tum_fr1',
+                'fps': 5.0,
+                'loop': True
+            }]
+        )]
     )
 
     # 2. SAM2 Segmentation
@@ -54,6 +57,25 @@ def generate_launch_description():
             ('odom',            '/slam/odom'),
         ]
     )
+        # ---------------------------------------------------------
+    # ORB-SLAM3 (Running simultaneously with RTAB-Map)
+    orbslam3_node = Node(
+        package='orbslam3',
+        executable='rgbd',
+        name='orb_slam3_rgbd',
+        output='screen',
+        prefix='xterm -T "ORB-SLAM3" -hold -e',
+        arguments=[
+            '/ros2_ws/src/ORB_SLAM3/Vocabulary/ORBvoc.txt',
+            '/ros2_ws/src/ORB_SLAM3/Examples/RGB-D/TUM1.yaml'
+        ],
+        remappings=[
+            ('camera/rgb',   '/camera/color/image_raw'),
+            ('camera/depth', '/camera/depth/image_raw')
+        ]
+    )
+    # ---------------------------------------------------------
+
 
     # 4. Semantic Fusion Node (with our new tf2 fixes)
     fusion_node = Node(
@@ -87,6 +109,7 @@ def generate_launch_description():
         dataset_player,
         sam2_node,
         rtabmap_odom,
+        orbslam3_node,
         fusion_node,
         rviz_node
     ])
