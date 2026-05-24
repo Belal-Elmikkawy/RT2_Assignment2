@@ -32,7 +32,7 @@ def generate_launch_description():
         name='sam2_perception',
         output='screen',
         prefix='xterm -T "SAM2 Perception" -hold -e',
-        parameters=[{'keyframe_interval': 3, 'use_sim_time': True}]
+        parameters=[{'keyframe_interval': 3, 'use_sim_time': True}],
         condition=LaunchConfigurationEquals('perception_model', 'sam2')
     )
 

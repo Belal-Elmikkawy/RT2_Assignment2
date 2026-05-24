@@ -13,6 +13,7 @@ from cv_bridge import CvBridge
 import cv2
 import numpy as np
 import torch
+import time
 from torchvision.models.segmentation import deeplabv3_resnet50, DeepLabV3_ResNet50_Weights
 from torchvision import transforms
 
@@ -70,7 +71,7 @@ class DeepLabV3Node(Node):
         if self._frame_counter % self._keyframe_interval != 0:
             return
 
-        start_time = self.get_clock().now()
+        start_time = time.perf_counter()
 
         # Convert to Numpy/OpenCV format
         try:
@@ -105,7 +106,7 @@ class DeepLabV3Node(Node):
         self.publisher_.publish(mask_msg)
 
         # Latency tracking
-        elapsed_ms = (self.get_clock().now() - start_time).nanoseconds / 1e6
+        elapsed_ms = (time.perf_counter() - start_time) * 1000.0
         self.latency_pub_.publish(Float32(data=float(elapsed_ms)))
 
         if self._frame_counter % (self._keyframe_interval * 10) == 0:
