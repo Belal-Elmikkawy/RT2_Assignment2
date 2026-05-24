@@ -26,6 +26,8 @@ setup(
         'console_scripts': [
             'sam2_node = sam_perception.sam2_node:main',
             'dataset_node = sam_perception.dataset_node:main',
+            'deeplabv3_node = sam_perception.deeplabv3_node:main',
+
         ],
     },
 )

@@ -17,7 +17,7 @@ import os
 import glob
 
 
-# ── Per-dataset default intrinsics (K matrix: fx, 0, cx, 0, fy, cy, 0, 0, 1) ──
+# Per-dataset default intrinsics (K matrix: fx, 0, cx, 0, fy, cy, 0, 0, 1)
 DATASET_INTRINSICS = {
     "tum_fr1": dict(
         width=640, height=480,
@@ -46,7 +46,7 @@ class DatasetPublisherNode(Node):
     def __init__(self):
         super().__init__('dataset_publisher_node')
 
-        # ── Parameters ─────────────────────────────────────────────────────
+        # Parameters
         self.declare_parameter('dataset_path',
                                '/workspace/datasets/TUM/rgbd_dataset_freiburg1_desk')
         self.declare_parameter('fps', 15.0)
@@ -54,27 +54,27 @@ class DatasetPublisherNode(Node):
         self.declare_parameter('dataset_type', 'tum_fr1')      # see DATASET_INTRINSICS keys
         self.declare_parameter('loop', False)                   # replay continuously?
 
-        dataset_path  = self.get_parameter('dataset_path').get_parameter_value().string_value
-        fps           = self.get_parameter('fps').get_parameter_value().double_value
-        scale_param   = self.get_parameter('depth_scaling_factor').get_parameter_value().double_value
-        ds_type       = self.get_parameter('dataset_type').get_parameter_value().string_value
-        self._loop    = self.get_parameter('loop').get_parameter_value().bool_value
+        dataset_path = self.get_parameter('dataset_path').get_parameter_value().string_value
+        fps = self.get_parameter('fps').get_parameter_value().double_value
+        scale_param = self.get_parameter('depth_scaling_factor').get_parameter_value().double_value
+        ds_type = self.get_parameter('dataset_type').get_parameter_value().string_value
+        self._loop = self.get_parameter('loop').get_parameter_value().bool_value
 
         # Select camera profile
         profile = DATASET_INTRINSICS.get(ds_type, DATASET_INTRINSICS["tum_fr1"])
-        self._k          = profile["k"]
-        self._img_width  = profile["width"]
+        self._k = profile["k"]
+        self._img_width = profile["width"]
         self._img_height = profile["height"]
         self.scale_factor = scale_param if scale_param > 0 else profile["depth_scale"]
 
-        # ── Publishers ──────────────────────────────────────────────────────
-        self.rgb_pub   = self.create_publisher(Image,      '/camera/color/image_raw',    10)
-        self.depth_pub = self.create_publisher(Image,      '/camera/depth/image_raw',    10)
+        # Publishers
+        self.rgb_pub = self.create_publisher(Image, '/camera/color/image_raw', 10)
+        self.depth_pub = self.create_publisher(Image, '/camera/depth/image_raw', 10)
         # RTAB-Map also listens on registered depth topic
-        self.depthreg_pub = self.create_publisher(Image,   '/camera/depth_registered/image_raw', 10)
-        self.info_pub  = self.create_publisher(CameraInfo, '/camera/color/camera_info',  10)
-        self.done_pub  = self.create_publisher(Bool,        '/dataset/sequence_done',    1)
-        self.bridge    = CvBridge()
+        self.depthreg_pub = self.create_publisher(Image, '/camera/depth_registered/image_raw', 10)
+        self.info_pub = self.create_publisher(CameraInfo, '/camera/color/camera_info', 10)
+        self.done_pub = self.create_publisher(Bool, '/dataset/sequence_done', 1)
+        self.bridge = CvBridge()
 
         raw_rgb = sorted(glob.glob(os.path.join(dataset_path, 'rgb', '*.png')))
         raw_depth = sorted(glob.glob(os.path.join(dataset_path, 'depth', '*.png')))
@@ -103,7 +103,7 @@ class DatasetPublisherNode(Node):
 
         msg = f"Dataset Publisher ready: {self._total_frames} frames @ {fps} FPS | type={ds_type} | scale={self.scale_factor}"
         self.get_logger().info(msg)
-        
+
         # Write debug info to a file mapped to the host
         try:
             with open('/ros2_ws/src/debug_dataset.log', 'w') as f:
@@ -114,7 +114,7 @@ class DatasetPublisherNode(Node):
         except Exception as e:
             pass
 
-    # ─────────────────────────────────────────────────────────────────────────
+
     def _build_camera_info(self, header) -> CameraInfo:
         info = CameraInfo()
         info.header = header
@@ -129,7 +129,7 @@ class DatasetPublisherNode(Node):
                   0.0, 0.0, 1.0,  0.0]
         return info
 
-    # ─────────────────────────────────────────────────────────────────────────
+
     def timer_callback(self):
         if self.current_frame >= self._total_frames:
             if self._loop:
@@ -142,7 +142,7 @@ class DatasetPublisherNode(Node):
                 return
 
         # Read images
-        rgb_img   = cv2.imread(self.rgb_files[self.current_frame],   cv2.IMREAD_COLOR)
+        rgb_img = cv2.imread(self.rgb_files[self.current_frame],   cv2.IMREAD_COLOR)
         depth_img = cv2.imread(self.depth_files[self.current_frame], cv2.IMREAD_UNCHANGED)  # 16-bit
 
         if rgb_img is None or depth_img is None:
@@ -157,12 +157,12 @@ class DatasetPublisherNode(Node):
         # Synchronized ROS header (same stamp for SLAM synchronization)
         current_time = self.get_clock().now().to_msg()
 
-        rgb_msg          = self.bridge.cv2_to_imgmsg(rgb_img, encoding="bgr8")
-        rgb_msg.header.stamp    = current_time
+        rgb_msg = self.bridge.cv2_to_imgmsg(rgb_img, encoding="bgr8")
+        rgb_msg.header.stamp = current_time
         rgb_msg.header.frame_id = "camera_color_optical_frame"
 
-        depth_msg        = self.bridge.cv2_to_imgmsg(depth_float, encoding="32FC1")
-        depth_msg.header.stamp    = current_time
+        depth_msg = self.bridge.cv2_to_imgmsg(depth_float, encoding="32FC1")
+        depth_msg.header.stamp = current_time
         depth_msg.header.frame_id = "camera_color_optical_frame"
 
         info_msg = self._build_camera_info(rgb_msg.header)

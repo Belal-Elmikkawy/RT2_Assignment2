@@ -2,11 +2,21 @@ import os
 from launch import LaunchDescription
 from launch.actions import TimerAction
 from launch_ros.actions import Node
+from launch.actions import TimerAction, DeclareLaunchArgument
 from launch_ros.substitutions import FindPackageShare
-from launch.substitutions import PathJoinSubstitution
+from launch.substitutions import PathJoinSubstitution, LaunchConfiguration
+from launch.conditions import LaunchConfigurationEquals
+
 
 def generate_launch_description():
-    # 1. Dataset Player (Delayed by 12 seconds to wait for ORB-SLAM3 Vocabulary to load)
+    perception_model_arg = DeclareLaunchArgument(
+        'perception_model',
+        default_value='sam2',
+        description='Perception model to use: sam2 or deeplabv3'
+    )
+
+
+    #  Dataset Player (Delayed by 12 seconds to wait for ORB-SLAM3 Vocabulary to load)
     dataset_player = TimerAction(
         period=12.0,
         actions=[Node(
@@ -31,7 +41,19 @@ def generate_launch_description():
         name='sam2_perception',
         output='screen',
         prefix='xterm -T "SAM2 Perception" -hold -e',
-        parameters=[{'keyframe_interval': 3}]
+        parameters=[{'keyframe_interval': 3}],
+        condition=LaunchConfigurationEquals('perception_model', 'sam2')
+    )
+
+    # DeepLabv3 Segmentation
+    deeplabv3_node = Node(
+        package='sam_perception',
+        executable='deeplabv3_node',
+        name='deeplabv3_perception',
+        output='screen',
+        prefix='xterm -T "DeepLabV3 Perception" -hold -e',
+        parameters=[{'keyframe_interval': 3}],
+        condition=LaunchConfigurationEquals('perception_model', 'deeplabv3')
     )
 
     # 3. RTAB-Map Odometry (using camera frame instead of base_link)
@@ -74,6 +96,28 @@ def generate_launch_description():
             ('camera/depth', '/camera/depth/image_raw')
         ]
     )
+
+    #RTAB-map SLAM (Mapping Node)
+    rtabmap_slam = Node(
+        package='rtabmap_slam',
+        executable='rtabmap',
+        name='rtabmap',
+        output='screen',
+        prefix='xterm -T "RTAB-Map SLAM" -hold -e',
+        parameters=[{
+            'frame_id': 'camera_color_optical_frame',
+            'subscribe_depth': True,
+            'subscribe_rgb': True,
+            'approx_sync': True,
+        }],
+        remappings=[
+            ('rgb/image', '/camera/color/image_raw'),
+            ('depth/image', '/camera/depth/image_raw'),
+            ('rgb/camera_info', '/camera/color/camera_info'),
+            ('odom', '/slam/odom'),
+        ],
+        arguments=['-d']
+    )
     # ---------------------------------------------------------
 
 
@@ -106,9 +150,12 @@ def generate_launch_description():
     )
 
     return LaunchDescription([
+        perception_model_arg,
         dataset_player,
         sam2_node,
+        deeplabv3_node,
         rtabmap_odom,
+        rtabmap_slam,
         orbslam3_node,
         fusion_node,
         rviz_node

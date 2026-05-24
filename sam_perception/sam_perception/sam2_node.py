@@ -24,7 +24,7 @@ class Sam2PerceptionNode(Node):
     def __init__(self):
         super().__init__("sam2_perception_node")
 
-        # ── ROS Parameters ────────────────────────────────────────────────
+        # ROS Parameters
         self.declare_parameter("checkpoint",
                                "/opt/sam2/checkpoints/sam2.1_hiera_small.pt")
         self.declare_parameter("model_cfg",
@@ -37,7 +37,7 @@ class Sam2PerceptionNode(Node):
         kf_interval = self.get_parameter("keyframe_interval").get_parameter_value().integer_value
         use_half = self.get_parameter("use_half_precision").get_parameter_value().bool_value
 
-        # ── Communication Setup ───────────────────────────────────────────
+        # Communication Setup
         self.bridge = CvBridge()
         self._frame_counter = 0
         self._keyframe_interval = max(1, kf_interval)
@@ -81,16 +81,16 @@ class Sam2PerceptionNode(Node):
 
         self.get_logger().info("SAM2 Node ready — listening for images.")
 
-    # ─────────────────────────────────────────────────────────────────────
+
     def image_callback(self, msg: Image):
-        # ── Keyframe throttling ───────────────────────────────────────────
+        # Keyframe throttling
         self._frame_counter += 1
         if self._frame_counter % self._keyframe_interval != 0:
             return
 
         start_time = self.get_clock().now()
 
-        # ── Convert to NumPy RGB ──────────────────────────────────────────
+        # Convert to NumPy RGB
         try:
             cv_image = self.bridge.imgmsg_to_cv2(msg, "bgr8")
         except Exception as e:
@@ -99,12 +99,11 @@ class Sam2PerceptionNode(Node):
 
         image_rgb = cv2.cvtColor(cv_image, cv2.COLOR_BGR2RGB)
 
-        # ── SAM2 Inference ────────────────────────────────────────────────
-        # label_map MUST be initialized here (was missing in original code)
-        label_map = np.zeros(image_rgb.shape[:2], dtype=np.uint8)  # H×W, all background
+        # SAM2 Inference
+        label_map = np.zeros(image_rgb.shape[:2], dtype=np.uint8)
 
         try:
-            with torch.no_grad():                       # saves GPU memory
+            with torch.no_grad():   # saves GPU memory not to store gradients
                 masks = self.mask_generator.generate(image_rgb)
         except Exception as e:
             self.get_logger().error(f"SAM2 inference failed: {e}")
@@ -118,12 +117,12 @@ class Sam2PerceptionNode(Node):
             boolean_mask = mask_data['segmentation']
             label_map[boolean_mask] = object_id
 
-        # ── Publish label map (once, outside the loop) ────────────────────
+        # Publish label map (once, outside the loop)
         mask_msg = self.bridge.cv2_to_imgmsg(label_map, encoding="mono8")  # typo fixed
         mask_msg.header = msg.header   # propagate original timestamp for sync
         self.publisher_.publish(mask_msg)
 
-        # ── Latency diagnostics ───────────────────────────────────────────
+        # Latency diagnostics
         elapsed_ms = (self.get_clock().now() - start_time).nanoseconds / 1e6
         self.latency_pub_.publish(Float32(data=float(elapsed_ms)))
         # Log once every 10 processed frames to avoid terminal spam

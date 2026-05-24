@@ -72,13 +72,27 @@ def generate_launch_description():
     <sensor name="camera" type="depth">
       <always_on>true</always_on>
       <update_rate>15.0</update_rate>
+      <camera>
+        <horizontal_fov>1.047</horizontal_fov>
+        <image>
+          <width>640</width>
+          <height>480</height>
+          <format>R8G8B8</format>
+        </image>
+        <clip>
+          <near>0.05</near>
+          <far>10.0</far>
+        </clip>
+      </camera>
       <plugin name="camera_controller" filename="libgazebo_ros_camera.so">
-        <ros>
-          <remapping>~/image_raw:=/camera/color/image_raw</remapping>
-          <remapping>~/depth/image_raw:=/camera/depth/image_raw</remapping>
-          <remapping>~/camera_info:=/camera/color/camera_info</remapping>
-        </ros>
         <camera_name>camera</camera_name>
+        <ros>
+          <remapping>camera/image_raw:=/camera/color/image_raw</remapping>
+          <remapping>camera/camera_info:=/camera/color/camera_info</remapping>
+          <remapping>camera/depth/image_raw:=/camera/depth/image_raw</remapping>
+          <remapping>camera/depth/camera_info:=/camera/depth/camera_info</remapping>
+          <remapping>camera/points:=/camera/depth/points</remapping>
+        </ros>
         <frame_name>camera_depth_optical_frame</frame_name>
       </plugin>
     </sensor>
