@@ -2,9 +2,8 @@
 """
 SAM2 Perception Node — ROS 2 Humble
 ────────────────────────────────────────────────────────────────────────────
-Subscribes to a raw RGB image stream, runs SAM2 automatic mask generation on
-every N-th frame (keyframe throttling), and publishes a uint8 label map on
-/sam2/semantic_mask where pixel value = instance ID (1-254, 0 = background).
+Subscribes to an RGB image stream, generates semantic masks via SAM2 at 
+configured keyframe intervals, and publishes the instance ID label map.
 """
 
 import rclpy
@@ -55,7 +54,7 @@ class Sam2PerceptionNode(Node):
         # Publish latency diagnostics as a Float32
         self.latency_pub_ = self.create_publisher(Float32, '/sam2/inference_latency_ms', 10)
 
-        # ── Model Initialization ──────────────────────────────────────────
+        # Initialize Model
         self.get_logger().info("Initializing SAM2 Model ...")
 
         device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -67,7 +66,7 @@ class Sam2PerceptionNode(Node):
             self.get_logger().fatal(f"Failed to load SAM2 model: {e}")
             raise
 
-        # Half-precision speeds up GPU inference considerably
+        # Utilize half-precision for optimized GPU inference
         if use_half and device == "cuda":
             sam2_model = sam2_model.half()
             self.get_logger().info("Using FP16 (half-precision) for faster inference.")
@@ -83,14 +82,14 @@ class Sam2PerceptionNode(Node):
 
 
     def image_callback(self, msg: Image):
-        # Keyframe throttling
+        # Throttle processing based on keyframe interval
         self._frame_counter += 1
         if self._frame_counter % self._keyframe_interval != 0:
             return
 
         start_time = self.get_clock().now()
 
-        # Convert to NumPy RGB
+        # Convert ROS message to NumPy RGB array
         try:
             cv_image = self.bridge.imgmsg_to_cv2(msg, "bgr8")
         except Exception as e:
@@ -99,25 +98,25 @@ class Sam2PerceptionNode(Node):
 
         image_rgb = cv2.cvtColor(cv_image, cv2.COLOR_BGR2RGB)
 
-        # SAM2 Inference
+        # Execute SAM2 Inference
         label_map = np.zeros(image_rgb.shape[:2], dtype=np.uint8)
 
         try:
-            with torch.no_grad():   # saves GPU memory not to store gradients
+            with torch.no_grad():
                 masks = self.mask_generator.generate(image_rgb)
         except Exception as e:
             self.get_logger().error(f"SAM2 inference failed: {e}")
             return
 
-        # Sort masks largest→smallest so smaller objects win (paint on top)
+        # Prioritize smaller objects by rendering them over larger masks
         masks_sorted = sorted(masks, key=lambda m: m['area'], reverse=True)
 
         for i, mask_data in enumerate(masks_sorted):
-            object_id = (i % 254) + 1          # valid range 1-254; 0 reserved for background
+            object_id = (i % 254) + 1
             boolean_mask = mask_data['segmentation']
             label_map[boolean_mask] = object_id
 
-        # Publish label map (once, outside the loop)
+        # Publish resulting label map
         mask_msg = self.bridge.cv2_to_imgmsg(label_map, encoding="mono8")  # typo fixed
         mask_msg.header = msg.header   # propagate original timestamp for sync
         self.publisher_.publish(mask_msg)
@@ -125,7 +124,7 @@ class Sam2PerceptionNode(Node):
         # Latency diagnostics
         elapsed_ms = (self.get_clock().now() - start_time).nanoseconds / 1e6
         self.latency_pub_.publish(Float32(data=float(elapsed_ms)))
-        # Log once every 10 processed frames to avoid terminal spam
+        # Log diagnostic metrics intermittently
         if self._frame_counter % (self._keyframe_interval * 10) == 0:
             self.get_logger().info(
                 f"Published mask: {len(masks)} objects | inference {elapsed_ms:.1f} ms "

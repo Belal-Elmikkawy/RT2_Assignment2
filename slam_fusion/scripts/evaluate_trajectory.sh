@@ -21,7 +21,14 @@ if [ ! -f "$GROUNDTRUTH" ]; then
 fi
 
 echo "=========================================================="
-echo " Running Trajectory Evaluation using evo"
+echo " Executing Absolute Trajectory Error (ATE / APE) Analysis"
 echo "=========================================================="
 
 evo_ape tum "$GROUNDTRUTH" "$ESTIMATED" -a --plot --plot_mode=xyz
+
+echo ""
+echo "=========================================================="
+echo " Executing Relative Pose Error (RPE) Analysis"
+echo "=========================================================="
+
+evo_rpe tum "$GROUNDTRUTH" "$ESTIMATED" -a --plot --plot_mode=xyz

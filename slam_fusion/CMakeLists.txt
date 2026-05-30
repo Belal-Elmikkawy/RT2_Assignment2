@@ -64,4 +64,10 @@ install(PROGRAMS
   DESTINATION lib/${PROJECT_NAME}
 )
 
+install(PROGRAMS
+  scripts/trajectory_exporter.py
+  scripts/semantic_evaluator_node.py
+  DESTINATION lib/${PROJECT_NAME}
+)
+
 ament_package()

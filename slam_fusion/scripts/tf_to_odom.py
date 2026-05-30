@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
-"""Converts Cartographer's map→base_link TF into nav_msgs/Odometry on /slam/odom."""
+"""
+TF to Odometry Converter Node — ROS 2 Humble
+────────────────────────────────────────────────────────────────────────────
+Converts Map to Base Link transforms into standard Odometry messages.
+"""
 import rclpy
 from rclpy.node import Node
 from nav_msgs.msg import Odometry

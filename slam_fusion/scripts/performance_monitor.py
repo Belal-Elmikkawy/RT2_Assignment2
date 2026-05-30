@@ -1,4 +1,9 @@
 #!/usr/bin/env python3
+"""
+Performance Monitor Node — ROS 2 Humble
+────────────────────────────────────────────────────────────────────────────
+Tracks and logs average system latency and inference frame rates.
+"""
 import rclpy
 from rclpy.node import Node
 from std_msgs.msg import Float32
@@ -9,7 +14,7 @@ class PerformanceMonitor(Node):
     def __init__(self):
         super().__init__('performance_monitor')
 
-        # Listen to latency topic
+        # Subscribe to inference latency metrics
         self.latency_sub = self.create_subscription(
             Float32,
             '/sam2/inference_latency_ms',
@@ -21,7 +26,7 @@ class PerformanceMonitor(Node):
         self.frame_times = collections.deque(maxlen=30)
         self.last_frame_time = time.time()
 
-        # Calculate stats every 1 second
+        # Schedule periodic performance reporting
         self.timer = self.create_timer(1.0, self.report_callback)
         self.get_logger().info("Performance Monitor Started. Waiting for latency messages ...")
 

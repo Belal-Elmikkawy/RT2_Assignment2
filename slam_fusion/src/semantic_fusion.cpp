@@ -2,17 +2,17 @@
  * @file semantic_fusion.cpp
  * @brief Semantic 3D Fusion Node — ROS 2 Humble
  *
+ * Fuses 2D semantic masks, depth images, and odometry to construct a 
+ * globally consistent, colorized 3D point cloud map.
+ *
  * Subscribes to:
- *   /sam2/semantic_mask  (sensor_msgs/Image, mono8 — per-pixel instance ID)
- *   /camera/depth/image_raw  (sensor_msgs/Image, 32FC1 — depth in metres)
- *   /slam/odom           (nav_msgs/Odometry — camera pose in world frame)
- *   /camera/color/camera_info  (sensor_msgs/CameraInfo — intrinsics)
+ *   - /sam2/semantic_mask (Instance IDs)
+ *   - /camera/depth/image_raw (Depth data)
+ *   - /slam/odom (Camera poses)
+ *   - /camera/color/camera_info (Intrinsics)
  *
  * Publishes:
- *   /semantic_map        (sensor_msgs/PointCloud2 — colourised by instance)
- *
- * Build requirements (CMakeLists.txt):
- *   PCL components: common, filters (for voxel grid)
+ *   - /semantic_map (Colorized PointCloud2)
  */
 
 #include <rclcpp/rclcpp.hpp>
@@ -152,7 +152,7 @@ private:
             return;
         }
 
-        // Convert ROS Images → OpenCV
+        // Convert incoming ROS messages to OpenCV format
         cv_bridge::CvImagePtr cv_depth, cv_mask;
         try {
             cv_depth = cv_bridge::toCvCopy(depth_msg,
@@ -164,13 +164,13 @@ private:
             return;
         }
 
-        // Extract camera intrinsics
+        // Retrieve camera intrinsics for projection
         const float fx = static_cast<float>(latest_info_->k[0]);
         const float cx = static_cast<float>(latest_info_->k[2]);
         const float fy = static_cast<float>(latest_info_->k[4]);
         const float cy = static_cast<float>(latest_info_->k[5]);
 
-        // Build local point cloud (camera frame)
+        // Initialize local point cloud in the camera coordinate frame
         pcl::PointCloud<pcl::PointXYZRGB>::Ptr local_cloud(
             new pcl::PointCloud<pcl::PointXYZRGB>());
         local_cloud->reserve(
@@ -182,11 +182,11 @@ private:
                 uint8_t class_id = cv_mask->image.at<uint8_t>(v, u);
                 float   z        = cv_depth->image.at<float>(v, u);
 
-                // Skip background, NaN, and out-of-range depth
+                // Filter out invalid or out-of-range pixels
                 if (class_id == 0 || std::isnan(z) || z < depth_min_ || z > depth_max_)
                     continue;
 
-                // Back-project pixel (u,v,z) → 3D camera-frame point
+                // Project 2D pixel coordinates to 3D space
                 pcl::PointXYZRGB pt;
                 pt.z = z;
                 pt.x = (static_cast<float>(u) - cx) * z / fx;
@@ -199,15 +199,15 @@ private:
             }
         }
 
-        // ── Sensor to Base Transform ──────────────────────────────────────
+        // Calculate Sensor to Base Transform
         std::string child_frame = odom_msg->child_frame_id;
         if (child_frame.empty()) {
-            child_frame = depth_msg->header.frame_id; // fallback if SLAM doesn't specify child frame
+            child_frame = depth_msg->header.frame_id; // Default to sensor frame if unspecified
         }
 
         geometry_msgs::msg::TransformStamped t_sensor_to_base;
         try {
-            // Lookup transform from camera to SLAM child frame
+            // Retrieve spatial transform from TF tree
             t_sensor_to_base = tf2_buffer_->lookupTransform(
                 child_frame,                 // Target frame
                 depth_msg->header.frame_id,  // Source frame
@@ -222,7 +222,7 @@ private:
         // Convert to Eigen
         Eigen::Isometry3f T_sensor_to_base = tf2::transformToEigen(t_sensor_to_base.transform).cast<float>();
 
-        // ── Base to World Transform (Odometry) ────────────────────────────
+        // Calculate Base to World Transform from Odometry
         Eigen::Quaternionf q(
             static_cast<float>(odom_msg->pose.pose.orientation.w),
             static_cast<float>(odom_msg->pose.pose.orientation.x),
@@ -237,17 +237,17 @@ private:
         T_base_to_world.linear() = q.toRotationMatrix();
         T_base_to_world.translation() = t;
 
-        // ── Combined Transform ────────────────────────────────────────────
+        // Compute final World Transform
         Eigen::Matrix4f T_total = (T_base_to_world * T_sensor_to_base).matrix();
 
         pcl::PointCloud<pcl::PointXYZRGB>::Ptr frame_world(
             new pcl::PointCloud<pcl::PointXYZRGB>());
         pcl::transformPointCloud(*local_cloud, *frame_world, T_total);
 
-        // Accumulate into global map
+        // Merge current frame into the global map
         *global_map_ += *frame_world;
 
-        // Voxel-grid downsampling (keeps map bounded & publishable in real-time)
+        // Apply Voxel-Grid filter to maintain real-time publishing performance
         if (voxel_leaf_size_ > 0.0f && !global_map_->empty()) {
             pcl::VoxelGrid<pcl::PointXYZRGB> vg;
             vg.setInputCloud(global_map_);

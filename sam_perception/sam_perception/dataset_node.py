@@ -2,8 +2,8 @@
 """
 Dataset Publisher Node — ROS 2 Humble
 ────────────────────────────────────────────────────────────────────────────
-Replays a TUM RGB-D (or ScanNet) dataset as a virtual camera by publishing
-synchronized RGB, depth, and CameraInfo messages on standard ROS 2 topics.
+Publishes synchronized RGB, depth, and CameraInfo messages from a dataset 
+to simulate a virtual camera stream for SLAM operations.
 """
 
 import rclpy
@@ -15,6 +15,7 @@ import cv2
 import numpy as np
 import os
 import glob
+import builtin_interfaces.msg
 
 
 # Per-dataset default intrinsics (K matrix: fx, 0, cx, 0, fy, cy, 0, 0, 1)
@@ -70,7 +71,7 @@ class DatasetPublisherNode(Node):
         # Publishers
         self.rgb_pub = self.create_publisher(Image, '/camera/color/image_raw', 10)
         self.depth_pub = self.create_publisher(Image, '/camera/depth/image_raw', 10)
-        # RTAB-Map also listens on registered depth topic
+        # Registered depth topic required by RTAB-Map
         self.depthreg_pub = self.create_publisher(Image, '/camera/depth_registered/image_raw', 10)
         self.info_pub = self.create_publisher(CameraInfo, '/camera/color/camera_info', 10)
         self.done_pub = self.create_publisher(Bool, '/dataset/sequence_done', 1)
@@ -89,7 +90,7 @@ class DatasetPublisherNode(Node):
         self.rgb_files = []
         self.depth_files = []
 
-        # Associate each RGB frame with the closest Depth frame in time
+        # Synchronize RGB and Depth frames based on temporal proximity
         for rgb_p in raw_rgb:
             t_rgb = get_time(rgb_p)
             closest_depth = min(raw_depth, key=lambda d: abs(get_time(d) - t_rgb))
@@ -150,12 +151,15 @@ class DatasetPublisherNode(Node):
             self.current_frame += 1
             return
 
-        # Scale depth to metres (float32) and set invalid depth (0) to NaN
+        # Convert depth to metric scale and mask invalid readings
         depth_float = depth_img.astype(np.float32) / self.scale_factor
         depth_float[depth_float == 0.0] = np.nan
 
-        # Synchronized ROS header (same stamp for SLAM synchronization)
-        current_time = self.get_clock().now().to_msg()
+        # Extract original timestamps for accurate ground-truth benchmarking
+        timestamp_float = float(os.path.basename(self.rgb_files[self.current_frame]).replace('.png', ''))
+        current_time = builtin_interfaces.msg.Time()
+        current_time.sec = int(timestamp_float)
+        current_time.nanosec = int((timestamp_float - current_time.sec) * 1e9)
 
         rgb_msg = self.bridge.cv2_to_imgmsg(rgb_img, encoding="bgr8")
         rgb_msg.header.stamp = current_time

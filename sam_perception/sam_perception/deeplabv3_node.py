@@ -2,8 +2,8 @@
 """
 DeepLabV3 Perception Node — ROS 2 Humble
 ────────────────────────────────────────────────────────────────────────────
-Subscribes to a raw RGB image stream, runs DeepLabV3 segmentation on
-every N-th frame, and publishes a uint8 label map on /sam2/semantic_mask.
+Subscribes to an RGB image stream, applies DeepLabV3 segmentation at 
+configured keyframe intervals, and publishes the resulting semantic mask.
 """
 import rclpy
 from rclpy.node import Node
@@ -92,7 +92,7 @@ class DeepLabV3Node(Node):
             with torch.no_grad():
                 output = self.model(input_tensor)['out'][0]
 
-            # Extract the class with the highest probability for each pixel
+            # Extract class label map utilizing maximum pixel probability
             label_map = output.argmax(0).byte().cpu().numpy()
 
         except Exception as e:

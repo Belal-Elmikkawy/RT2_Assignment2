@@ -16,7 +16,7 @@ def generate_launch_description():
     )
 
 
-    #  Dataset Player (Delayed by 12 seconds to wait for ORB-SLAM3 Vocabulary to load)
+    # Dataset Player (Delayed to accommodate ORB-SLAM3 Vocabulary loading)
     dataset_player = TimerAction(
         period=12.0,
         actions=[Node(
@@ -34,7 +34,7 @@ def generate_launch_description():
         )]
     )
 
-    # 2. SAM2 Segmentation
+    # SAM2 Segmentation Node
     sam2_node = Node(
         package='sam_perception',
         executable='sam2_node',
@@ -45,7 +45,7 @@ def generate_launch_description():
         condition=LaunchConfigurationEquals('perception_model', 'sam2')
     )
 
-    # DeepLabv3 Segmentation
+    # DeepLabv3 Segmentation Node
     deeplabv3_node = Node(
         package='sam_perception',
         executable='deeplabv3_node',
@@ -56,7 +56,7 @@ def generate_launch_description():
         condition=LaunchConfigurationEquals('perception_model', 'deeplabv3')
     )
 
-    # 3. RTAB-Map Odometry (using camera frame instead of base_link)
+    # RTAB-Map Odometry (Utilizing camera frame rather than base_link)
     rtabmap_odom = Node(
         package='rtabmap_odom',
         executable='rgbd_odometry',
@@ -80,13 +80,13 @@ def generate_launch_description():
         ]
     )
         # ---------------------------------------------------------
-    # ORB-SLAM3 (Running simultaneously with RTAB-Map)
+    # ORB-SLAM3 Tracking (Executes concurrently with RTAB-Map)
     orbslam3_node = Node(
         package='orbslam3',
         executable='rgbd',
         name='orb_slam3_rgbd',
         output='screen',
-        prefix='xterm -T "ORB-SLAM3" -hold -e',
+        #prefix='xterm -T "ORB-SLAM3" -hold -e',
         arguments=[
             '/ros2_ws/src/ORB_SLAM3/Vocabulary/ORBvoc.txt',
             '/ros2_ws/src/ORB_SLAM3/Examples/RGB-D/TUM1.yaml'
@@ -97,7 +97,7 @@ def generate_launch_description():
         ]
     )
 
-    #RTAB-map SLAM (Mapping Node)
+    # RTAB-Map SLAM Backend
     rtabmap_slam = Node(
         package='rtabmap_slam',
         executable='rtabmap',
@@ -121,7 +121,7 @@ def generate_launch_description():
     # ---------------------------------------------------------
 
 
-    # 4. Semantic Fusion Node (with our new tf2 fixes)
+    # Semantic Fusion Node for 3D Map Reconstruction
     fusion_node = Node(
         package='slam_fusion',
         executable='semantic_fusion_node',
@@ -136,7 +136,26 @@ def generate_launch_description():
         }]
     )
 
-    # 5. RViz2
+    # Trajectory Exporter Node
+    trajectory_exporter_node = Node(
+        package='slam_fusion',
+        executable='trajectory_exporter.py',
+        name='trajectory_exporter',
+        output='screen',
+        prefix='xterm -T "Trajectory Exporter" -hold -e',
+        parameters=[{'output_file': 'slam_trajectory.txt'}]
+    )
+
+    # Semantic Evaluator Node
+    semantic_evaluator_node = Node(
+        package='slam_fusion',
+        executable='semantic_evaluator_node.py',
+        name='semantic_evaluator',
+        output='screen',
+        prefix='xterm -T "Semantic Evaluator" -hold -e'
+    )
+
+    # RViz2 Visualization Node
     rviz_config = PathJoinSubstitution([FindPackageShare('slam_fusion'), 'rviz', 'mapping.rviz'])
     rviz_node = TimerAction(
         period=3.0,
@@ -158,5 +177,7 @@ def generate_launch_description():
         rtabmap_slam,
         orbslam3_node,
         fusion_node,
+        trajectory_exporter_node,
+        semantic_evaluator_node,
         rviz_node
     ])
