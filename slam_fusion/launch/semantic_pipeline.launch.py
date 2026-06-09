@@ -114,12 +114,14 @@ def generate_launch_description():
 
     # ORB-SLAM3 (Running simultaneously with RTAB-Map and Cartographer)
     # The vocabulary and camera config paths are set for the Docker container workspace
+    orb_libs = '/ros2_ws/src/ORB_SLAM3/lib:/ros2_ws/src/ORB_SLAM3/Thirdparty/DBoW2/lib:/ros2_ws/src/ORB_SLAM3/Thirdparty/g2o/lib'
+    current_ld = os.environ.get('LD_LIBRARY_PATH', '')
+    
     orbslam3_node = Node(
         package='orbslam3',
         executable='rgbd',
         name='orb_slam3_rgbd',
         output='screen',
-        prefix='xterm -T "ORB-SLAM3" -hold -e',
         arguments=[
             '/ros2_ws/src/ORB_SLAM3/Vocabulary/ORBvoc.txt',
             '/ros2_ws/src/slam_fusion/config/g1_gazebo_camera.yaml'
@@ -147,6 +149,35 @@ def generate_launch_description():
         )]
     )
 
+    # Evaluation: Semantic Consistency Evaluator
+    semantic_evaluator = Node(
+        package='slam_fusion',
+        executable='semantic_evaluator_node.py',
+        name='semantic_evaluator',
+        output='screen',
+        prefix='xterm -T "Semantic Evaluator" -hold -e',
+        remappings=[
+            ('/slam/odom', '/odom')
+        ],
+        parameters=[{'use_sim_time': True}]
+    )
+
+    # Evaluation: Trajectory Exporter (Writes slam_trajectory.txt for evo)
+    trajectory_exporter = Node(
+        package='slam_fusion',
+        executable='trajectory_exporter.py',
+        name='trajectory_exporter',
+        output='screen',
+        prefix='xterm -T "Trajectory Exporter" -hold -e',
+        parameters=[
+            {'output_file': 'slam_trajectory.txt'},
+            {'use_sim_time': True}
+        ],
+        remappings=[
+            ('/slam/odom', '/odom')
+        ]
+    )
+
     return LaunchDescription([
         perception_model_arg,
         gazebo_launch,
@@ -157,5 +188,6 @@ def generate_launch_description():
         cartographer_grid_node,
         fusion_node,
         orbslam3_node,
+        semantic_evaluator,
         rviz_node,
     ])

@@ -1,15 +1,24 @@
 import os
 from launch import LaunchDescription
-from launch.actions import ExecuteProcess, TimerAction
+from launch.actions import ExecuteProcess, TimerAction, SetEnvironmentVariable
 from launch_ros.actions import Node
 from ament_index_python.packages import get_package_share_directory
 
 
 def generate_launch_description():
     pkg_dir = get_package_share_directory('sam_simulation')
+    aws_house_dir = get_package_share_directory('aws_robomaker_small_house_world')
+
+    # Ensure Gazebo can find the AWS house models directly from the source mount
+    # because sometimes symlink-install fails to symlink deep directories correctly
+    aws_model_path = '/ros2_ws/src/aws-robomaker-small-house-world/models'
+    set_model_path = SetEnvironmentVariable(
+        name='GAZEBO_MODEL_PATH',
+        value=[aws_model_path, ':', os.environ.get('GAZEBO_MODEL_PATH', '')]
+    )
 
     # Start Gazebo Classic with the indoor world and the ROS 2 factory plugin
-    world_file = os.path.join(pkg_dir, 'worlds', 'indoor_room.world')
+    world_file = os.path.join(aws_house_dir, 'worlds', 'small_house.world')
     gazebo = ExecuteProcess(
         cmd=[
             'gazebo', '--verbose', world_file,
@@ -205,6 +214,7 @@ def generate_launch_description():
     )
 
     return LaunchDescription([
+        set_model_path,
         gazebo,
         robot_state_publisher,
         spawn_entity,

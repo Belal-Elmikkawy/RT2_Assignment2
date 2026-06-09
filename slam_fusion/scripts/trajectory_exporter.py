@@ -11,9 +11,9 @@ class TrajectoryExporterNode(Node):
         self.declare_parameter('output_file', 'slam_trajectory.txt')
         self.output_file = self.get_parameter('output_file').get_parameter_value().string_value
         
-        # Clear existing file
+        # Clear existing file without comment header to strictly match evo's TUM format expectations
         with open(self.output_file, 'w') as f:
-            f.write("# timestamp tx ty tz qx qy qz qw\n")
+            pass
             
         self.sub_odom = self.create_subscription(
             Odometry,
@@ -34,6 +34,7 @@ class TrajectoryExporterNode(Node):
         
         with open(self.output_file, 'a') as f:
             f.write(line)
+            f.flush()
 
 def main(args=None):
     rclpy.init(args=args)

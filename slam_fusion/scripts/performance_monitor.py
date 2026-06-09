@@ -14,6 +14,13 @@ class PerformanceMonitor(Node):
     def __init__(self):
         super().__init__('performance_monitor')
 
+        self.declare_parameter('output_csv', '')
+        self.output_csv = self.get_parameter('output_csv').get_parameter_value().string_value
+        
+        if self.output_csv:
+            with open(self.output_csv, 'w') as f:
+                f.write("timestamp,avg_latency_ms,fps\n")
+
         # Subscribe to inference latency metrics
         self.latency_sub = self.create_subscription(
             Float32,
@@ -51,6 +58,10 @@ class PerformanceMonitor(Node):
 
         else:
             fps = 0.0
+
+        if self.output_csv:
+            with open(self.output_csv, 'a') as f:
+                f.write(f"{time.time()},{avg_latency:.2f},{fps:.2f}\n")
 
         print(f"\r\033[K[Performance] Inference Latency: {avg_latency:6.1f} ms | Actual Rate: {fps:5.1f} FPS", end="", flush=True)
 

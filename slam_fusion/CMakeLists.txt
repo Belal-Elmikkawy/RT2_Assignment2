@@ -67,6 +67,7 @@ install(PROGRAMS
 install(PROGRAMS
   scripts/trajectory_exporter.py
   scripts/semantic_evaluator_node.py
+  scripts/performance_monitor.py
   DESTINATION lib/${PROJECT_NAME}
 )
 
