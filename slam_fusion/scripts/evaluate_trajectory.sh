@@ -52,11 +52,17 @@ if [ ! -s "$ESTIMATED" ]; then
     exit 1
 fi
 
-evo_ape tum "$GROUNDTRUTH" "$ESTIMATED" -a --plot --plot_mode=xyz --t_max_diff 0.1
+BASENAME=$(basename "$ESTIMATED" .txt)
+RESULTS_DIR="/ros2_ws/src/results"
+mkdir -p "$RESULTS_DIR"
+
+echo "Saving evaluation results to $RESULTS_DIR"
+
+evo_ape tum "$GROUNDTRUTH" "$ESTIMATED" -a --plot_mode=xyz --t_max_diff 0.1 --save_plot "${RESULTS_DIR}/${BASENAME}_ape.png" --save_results "${RESULTS_DIR}/${BASENAME}_ape.zip"
 
 echo ""
 echo "=========================================================="
 echo " Executing Relative Pose Error (RPE) Analysis"
 echo "=========================================================="
 
-evo_rpe tum "$GROUNDTRUTH" "$ESTIMATED" -a --plot --plot_mode=xyz --t_max_diff 0.1
+evo_rpe tum "$GROUNDTRUTH" "$ESTIMATED" -a --plot_mode=xyz --t_max_diff 0.1 --save_plot "${RESULTS_DIR}/${BASENAME}_rpe.png" --save_results "${RESULTS_DIR}/${BASENAME}_rpe.zip"
