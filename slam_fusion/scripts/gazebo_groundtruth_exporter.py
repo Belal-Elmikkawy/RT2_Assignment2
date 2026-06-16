@@ -10,26 +10,26 @@
 import rclpy
 from rclpy.node import Node
 from nav_msgs.msg import Odometry
-import os
 
-class TrajectoryExporterNode(Node):
+class GazeboGroundtruthExporterNode(Node):
     def __init__(self):
-        super().__init__('trajectory_exporter_node')
+        super().__init__('gazebo_groundtruth_exporter')
         
-        self.declare_parameter('output_file', 'slam_trajectory.txt')
+        self.declare_parameter('output_file', 'gazebo_groundtruth.txt')
         self.output_file = self.get_parameter('output_file').get_parameter_value().string_value
         
         # Initialize empty output file
         with open(self.output_file, 'w') as f:
             pass
             
+        # Subscribe to odometry
         self.sub_odom = self.create_subscription(
             Odometry,
-            '/slam/odom',
+            '/odom',
             self.odom_callback,
             10
         )
-        self.get_logger().info(f"Trajectory Exporter started. Writing to {self.output_file}")
+        self.get_logger().info(f"Gazebo Ground Truth Exporter started. Writing to {self.output_file}")
 
     def odom_callback(self, msg: Odometry):
         # Convert ROS timestamp to seconds (float)
@@ -46,7 +46,7 @@ class TrajectoryExporterNode(Node):
 
 def main(args=None):
     rclpy.init(args=args)
-    node = TrajectoryExporterNode()
+    node = GazeboGroundtruthExporterNode()
     rclpy.spin(node)
     node.destroy_node()
     rclpy.shutdown()

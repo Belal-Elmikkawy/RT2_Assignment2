@@ -1,4 +1,12 @@
 #!/usr/bin/env python3
+"""
+=============================================================================
+@Project : Semantic SLAM Evaluation Framework
+@Desc    : Evaluation framework for comparing Visual vs LIDAR SLAM 
+           algorithms (ORB-SLAM3, RTAB-Map, Cartographer) augmented 
+           with zero-shot semantic segmentation (SAM2 / DeepLabV3).
+=============================================================================
+"""
 import rclpy
 from rclpy.node import Node
 from sensor_msgs.msg import Image, CameraInfo
@@ -42,6 +50,11 @@ class SemanticEvaluatorNode(Node):
         p = odom_msg.pose.pose.position
         q = odom_msg.pose.pose.orientation
         
+        # Handle invalid zero-norm quaternions published during tracking loss.
+        norm = np.sqrt(q.x**2 + q.y**2 + q.z**2 + q.w**2)
+        if norm < 1e-6:
+            q.x, q.y, q.z, q.w = 0.0, 0.0, 0.0, 1.0
+            
         T = np.eye(4)
         T[:3, :3] = R.from_quat([q.x, q.y, q.z, q.w]).as_matrix()
         T[:3, 3] = [p.x, p.y, p.z]

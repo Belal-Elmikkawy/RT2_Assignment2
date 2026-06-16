@@ -1,3 +1,11 @@
+"""
+=============================================================================
+@Project : Semantic SLAM Evaluation Framework
+@Desc    : Evaluation framework for comparing Visual vs LIDAR SLAM 
+           algorithms (ORB-SLAM3, RTAB-Map, Cartographer) augmented 
+           with zero-shot semantic segmentation (SAM2 / DeepLabV3).
+=============================================================================
+"""
 import os
 from launch import LaunchDescription
 from launch.actions import IncludeLaunchDescription, TimerAction, DeclareLaunchArgument
@@ -26,6 +34,10 @@ def generate_launch_description():
 
     use_sim_time = PythonExpression(["'true' if '", LaunchConfiguration('run_mode'), "' == 'simulation' else 'false'"])
 
+    default_dataset_path = '/workspace/datasets/TUM/rgbd_dataset_freiburg1_desk'
+    if not os.path.exists(default_dataset_path):
+        default_dataset_path = os.path.expanduser('~/sam_slam_ws/datasets/TUM/rgbd_dataset_freiburg1_desk')
+
     # ==========================
     # DATA SOURCES
     # ==========================
@@ -46,7 +58,7 @@ def generate_launch_description():
             output='screen',
             prefix='xterm -T "Dataset Publisher" -hold -e',
             parameters=[{
-                'dataset_path': '/workspace/datasets/TUM/rgbd_dataset_freiburg1_desk',
+                'dataset_path': default_dataset_path,
                 'dataset_type': 'tum_fr1',
                 'fps': 5.0,
                 'loop': True
@@ -134,6 +146,9 @@ def generate_launch_description():
         }]
     )
 
+    traj_filename = ['/ros2_ws/orbslam3_', LaunchConfiguration('perception_model'), '_estimate.txt']
+    csv_filename = ['/ros2_ws/orbslam3_', LaunchConfiguration('perception_model'), '_performance.csv']
+
     trajectory_exporter_node = Node(
         package='slam_fusion',
         executable='trajectory_exporter.py',
@@ -141,7 +156,7 @@ def generate_launch_description():
         output='screen',
         prefix='xterm -T "Trajectory Exporter" -hold -e',
         parameters=[{
-            'output_file': 'orbslam3_estimate.txt',
+            'output_file': traj_filename,
             'use_sim_time': use_sim_time
         }]
     )
@@ -153,7 +168,7 @@ def generate_launch_description():
         output='screen',
         prefix='xterm -T "Performance Monitor" -hold -e',
         parameters=[{
-            'output_csv': 'orbslam3_performance.csv',
+            'output_csv': csv_filename,
             'use_sim_time': use_sim_time
         }]
     )
@@ -165,6 +180,16 @@ def generate_launch_description():
         output='screen',
         prefix='xterm -T "Semantic Evaluator" -hold -e',
         parameters=[{'use_sim_time': use_sim_time}]
+    )
+
+    gazebo_gt_exporter = Node(
+        package='slam_fusion',
+        executable='gazebo_groundtruth_exporter.py',
+        name='gazebo_groundtruth_exporter',
+        output='screen',
+        prefix='xterm -T "Gazebo GT Exporter" -hold -e',
+        parameters=[{'output_file': '/ros2_ws/gazebo_groundtruth.txt'}],
+        condition=LaunchConfigurationEquals('run_mode', 'simulation')
     )
 
     # RViz2
@@ -192,6 +217,7 @@ def generate_launch_description():
         orbslam3_sim_node,
         fusion_node,
         trajectory_exporter_node,
+        gazebo_gt_exporter,
         performance_monitor_node,
         semantic_evaluator_node,
         rviz_node

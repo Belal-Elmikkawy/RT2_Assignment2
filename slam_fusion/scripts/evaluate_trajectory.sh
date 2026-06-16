@@ -1,4 +1,10 @@
 #!/bin/bash
+# =============================================================================
+# @Project : Semantic SLAM Evaluation Framework
+# @Desc    : Evaluation framework for comparing Visual vs LIDAR SLAM 
+#            algorithms (ORB-SLAM3, RTAB-Map, Cartographer) augmented 
+#            with zero-shot semantic segmentation (SAM2 / DeepLabV3).
+# =============================================================================
 # evaluate_trajectory.sh
 
 if [ "$#" -ne 2 ]; then
@@ -30,8 +36,7 @@ if [ ! -s "$ESTIMATED" ]; then
     exit 1
 fi
 
-# Automatically clean the TUM trajectory file to fix any evo parser errors 
-# caused by ORB-SLAM3 or trailing spaces/empty lines from abrupt shutdowns.
+# Clean the TUM trajectory file to ensure evo parser compatibility.
 CLEANER_SCRIPT="/ros2_ws/src/slam_fusion/scripts/clean_tum_traj.py"
 if [ -f "$CLEANER_SCRIPT" ]; then
     echo "Running trajectory cleaner..."
@@ -47,11 +52,11 @@ if [ ! -s "$ESTIMATED" ]; then
     exit 1
 fi
 
-evo_ape tum "$GROUNDTRUTH" "$ESTIMATED" -a --plot --plot_mode=xyz
+evo_ape tum "$GROUNDTRUTH" "$ESTIMATED" -a --plot --plot_mode=xyz --t_max_diff 0.1
 
 echo ""
 echo "=========================================================="
 echo " Executing Relative Pose Error (RPE) Analysis"
 echo "=========================================================="
 
-evo_rpe tum "$GROUNDTRUTH" "$ESTIMATED" -a --plot --plot_mode=xyz
+evo_rpe tum "$GROUNDTRUTH" "$ESTIMATED" -a --plot --plot_mode=xyz --t_max_diff 0.1

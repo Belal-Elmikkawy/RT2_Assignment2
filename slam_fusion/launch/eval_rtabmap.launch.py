@@ -1,3 +1,11 @@
+"""
+=============================================================================
+@Project : Semantic SLAM Evaluation Framework
+@Desc    : Evaluation framework for comparing Visual vs LIDAR SLAM 
+           algorithms (ORB-SLAM3, RTAB-Map, Cartographer) augmented 
+           with zero-shot semantic segmentation (SAM2 / DeepLabV3).
+=============================================================================
+"""
 import os
 from launch import LaunchDescription
 from launch.actions import IncludeLaunchDescription, TimerAction, DeclareLaunchArgument
@@ -27,6 +35,10 @@ def generate_launch_description():
     # Determine use_sim_time based on run_mode
     use_sim_time = PythonExpression(["'true' if '", LaunchConfiguration('run_mode'), "' == 'simulation' else 'false'"])
 
+    default_dataset_path = '/workspace/datasets/TUM/rgbd_dataset_freiburg1_desk'
+    if not os.path.exists(default_dataset_path):
+        default_dataset_path = os.path.expanduser('~/sam_slam_ws/datasets/TUM/rgbd_dataset_freiburg1_desk')
+
     # ==========================
     # DATA SOURCES
     # ==========================
@@ -49,7 +61,7 @@ def generate_launch_description():
             output='screen',
             prefix='xterm -T "Dataset Publisher" -hold -e',
             parameters=[{
-                'dataset_path': '/workspace/datasets/TUM/rgbd_dataset_freiburg1_desk',
+                'dataset_path': default_dataset_path,
                 'dataset_type': 'tum_fr1',
                 'fps': 5.0,
                 'loop': True
@@ -80,6 +92,8 @@ def generate_launch_description():
         condition=LaunchConfigurationEquals('perception_model', 'deeplabv3')
     )
 
+    base_frame_id = PythonExpression(["'base_link' if '", LaunchConfiguration('run_mode'), "' == 'simulation' else 'camera_color_optical_frame'"])
+
     # ==========================
     # SLAM BACKEND: RTAB-MAP
     # ==========================
@@ -91,7 +105,7 @@ def generate_launch_description():
         prefix='xterm -T "RTAB-Map Odometry" -hold -e',
         arguments=['--ros-args', '--log-level', 'WARN'],
         parameters=[{
-            'frame_id': 'camera_color_optical_frame',
+            'frame_id': base_frame_id,
             'approx_sync': True,
             'publish_tf': True,
             'use_sim_time': use_sim_time,
@@ -114,7 +128,7 @@ def generate_launch_description():
         output='screen',
         prefix='xterm -T "RTAB-Map SLAM" -hold -e',
         parameters=[{
-            'frame_id': 'camera_color_optical_frame',
+            'frame_id': base_frame_id,
             'subscribe_depth': True,
             'subscribe_rgb': True,
             'approx_sync': True,
@@ -147,6 +161,9 @@ def generate_launch_description():
         }]
     )
 
+    traj_filename = ['/ros2_ws/rtabmap_', LaunchConfiguration('perception_model'), '_estimate.txt']
+    csv_filename = ['/ros2_ws/rtabmap_', LaunchConfiguration('perception_model'), '_performance.csv']
+
     trajectory_exporter_node = Node(
         package='slam_fusion',
         executable='trajectory_exporter.py',
@@ -154,7 +171,7 @@ def generate_launch_description():
         output='screen',
         prefix='xterm -T "Trajectory Exporter" -hold -e',
         parameters=[{
-            'output_file': 'rtabmap_estimate.txt',
+            'output_file': traj_filename,
             'use_sim_time': use_sim_time
         }]
     )
@@ -166,7 +183,7 @@ def generate_launch_description():
         output='screen',
         prefix='xterm -T "Performance Monitor" -hold -e',
         parameters=[{
-            'output_csv': 'rtabmap_performance.csv',
+            'output_csv': csv_filename,
             'use_sim_time': use_sim_time
         }]
     )
@@ -194,6 +211,30 @@ def generate_launch_description():
         )]
     )
 
+    rtabmap_map_server = Node(
+        package='rtabmap_util',
+        executable='map_assembler',
+        name='rtabmap_map_server',
+        output='screen',
+        prefix='xterm -T "RTAB-Map Map Server" -hold -e',
+        parameters=[{
+            'use_sim_time': use_sim_time,
+        }],
+        remappings=[
+            ('mapData', '/mapData')
+        ]
+    )
+
+    gazebo_gt_exporter = Node(
+        package='slam_fusion',
+        executable='gazebo_groundtruth_exporter.py',
+        name='gazebo_groundtruth_exporter',
+        output='screen',
+        prefix='xterm -T "Gazebo GT Exporter" -hold -e',
+        parameters=[{'output_file': '/ros2_ws/gazebo_groundtruth.txt'}],
+        condition=LaunchConfigurationEquals('run_mode', 'simulation')
+    )
+
     return LaunchDescription([
         run_mode_arg,
         perception_model_arg,
@@ -203,8 +244,10 @@ def generate_launch_description():
         deeplabv3_node,
         rtabmap_odom,
         rtabmap_slam,
+        rtabmap_map_server,
         fusion_node,
         trajectory_exporter_node,
+        gazebo_gt_exporter,
         performance_monitor_node,
         semantic_evaluator_node,
         rviz_node

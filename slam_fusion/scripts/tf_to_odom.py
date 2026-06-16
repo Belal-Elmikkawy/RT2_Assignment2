@@ -1,5 +1,13 @@
 #!/usr/bin/env python3
 """
+=============================================================================
+@Project : Semantic SLAM Evaluation Framework
+@Desc    : Evaluation framework for comparing Visual vs LIDAR SLAM 
+           algorithms (ORB-SLAM3, RTAB-Map, Cartographer) augmented 
+           with zero-shot semantic segmentation (SAM2 / DeepLabV3).
+=============================================================================
+"""
+"""
 TF to Odometry Converter Node — ROS 2 Humble
 ────────────────────────────────────────────────────────────────────────────
 Converts Map to Base Link transforms into standard Odometry messages.

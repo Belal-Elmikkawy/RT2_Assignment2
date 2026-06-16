@@ -1,3 +1,11 @@
+/*
+=============================================================================
+@Project : Semantic SLAM Evaluation Framework
+@Desc    : Evaluation framework for comparing Visual vs LIDAR SLAM 
+           algorithms (ORB-SLAM3, RTAB-Map, Cartographer) augmented 
+           with zero-shot semantic segmentation (SAM2 / DeepLabV3).
+=============================================================================
+*/
 /**
  * @file semantic_fusion.cpp
  * @brief Semantic 3D Fusion Node — ROS 2 Humble

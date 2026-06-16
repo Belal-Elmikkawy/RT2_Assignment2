@@ -30,7 +30,7 @@ add_definitions(${PCL_DEFINITIONS})
 # ── Executable ────────────────────────────────────────────────────────────
 add_executable(semantic_fusion_node src/semantic_fusion.cpp)
 
-# Fix for Conda environments where Conda's libcurl masks system libcurl
+# Ensure system libcurl is linked to avoid Conda environment conflicts.
 find_library(SYSTEM_CURL_LIB curl PATHS /usr/lib/x86_64-linux-gnu NO_DEFAULT_PATH)
 target_link_libraries(semantic_fusion_node ${PCL_LIBRARIES} ${SYSTEM_CURL_LIB})
 
@@ -68,6 +68,8 @@ install(PROGRAMS
   scripts/trajectory_exporter.py
   scripts/semantic_evaluator_node.py
   scripts/performance_monitor.py
+  scripts/gazebo_groundtruth_exporter.py
+  scripts/performance_dashboard.py
   DESTINATION lib/${PROJECT_NAME}
 )
 

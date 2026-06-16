@@ -1,3 +1,11 @@
+"""
+=============================================================================
+@Project : Semantic SLAM Evaluation Framework
+@Desc    : Evaluation framework for comparing Visual vs LIDAR SLAM 
+           algorithms (ORB-SLAM3, RTAB-Map, Cartographer) augmented 
+           with zero-shot semantic segmentation (SAM2 / DeepLabV3).
+=============================================================================
+"""
 import os
 from launch import LaunchDescription
 from launch.actions import IncludeLaunchDescription, TimerAction, DeclareLaunchArgument
