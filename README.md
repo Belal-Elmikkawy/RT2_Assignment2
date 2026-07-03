@@ -47,44 +47,50 @@ graph TD
     class P1,S1,F1,F2,O1,G1A desc;
 ```
 
-## How to Run Gazebo Simulation for Each Algorithm
-You can run each SLAM algorithm in the Gazebo simulation environment by specifying the `run_mode` and `perception_model`. 
+## Role of the Jupyter Notebook
 
-To run **ORB-SLAM3**:
-```bash
-ros2 launch slam_fusion eval_orbslam3.launch.py run_mode:=simulation perception_model:=sam2
-```
-
-To run **Cartographer**:
-```bash
-ros2 launch slam_fusion eval_cartographer.launch.py run_mode:=simulation perception_model:=sam2
-```
-
-To run **RTAB-Map**:
-```bash
-ros2 launch slam_fusion eval_rtabmap.launch.py run_mode:=simulation perception_model:=sam2
-```
-*(Note: You can change `perception_model:=sam2` to `perception_model:=deeplabv3` to test the classical baseline).*
-
-## Running the Error Calculation
-Once a simulation is finished, trajectories are saved to evaluate the geometric accuracy. You can use the provided bash script to calculate the Absolute Trajectory Error (ATE) and Relative Pose Error (RPE) using `evo`.
-
-```bash
-cd src/slam_fusion/scripts
-./evaluate_trajectory.sh <estimated_trajectory_file> <groundtruth_file>
-```
-**Example:**
-```bash
-./evaluate_trajectory.sh /ros2_ws/orbslam3_sam2_estimate.txt /ros2_ws/gazebo_groundtruth.txt
-```
+The Jupyter Notebook acts as the central control and evaluation dashboard for this project. Instead of running the ROS2 nodes and SLAM backends manually from the terminal, the notebook allows you to:
+- Interactively launch different SLAM configurations (e.g., ORB-SLAM3, Cartographer, RTAB-Map).
+- Process the resulting trajectory data.
+- Dynamically compute error metrics (ATE, RPE).
+- Visualize the output maps and semantic data directly within the notebook environment.
 
 ## Running the Jupyter Notebooks
 
-This repository includes Jupyter Notebooks for interactive data analysis and visualization of the SLAM algorithms' performance. The notebooks process the trajectory data and compute error metrics dynamically.
+This project can be run either locally or via a Docker container.
 
-### How to use the notebooks
+### Option 1: Running via Docker (Recommended)
 
-1. Make sure you have Jupyter installed (or use VS Code with the Jupyter extension).
-2. Navigate to the `notebooks` directory.
-3. Open `ipywidgets.ipynb` to access the interactive data visualization.
-4. Run the cells sequentially to load the trajectory outputs (e.g., from `KeyFrameTrajectory.txt`) and generate the evaluation plots.
+Using Docker ensures that all dependencies (ROS2, SAM2, DeepLabV3, Jupyter) are pre-configured.
+
+1. Ensure you have Docker and Docker Compose installed on your system.
+2. Navigate to the workspace directory containing the `Dockerfile` or `docker-compose.yml`.
+3. Build and start the container:
+   ```bash
+   docker-compose up --build
+   ```
+   *(If you are just using a Dockerfile, you can build with `docker build -t sam_slam .` and run with port forwarding `docker run -p 8888:8888 sam_slam`)*
+4. Once the container is running, it will start the Jupyter Notebook server.
+5. Check your terminal output for the Jupyter URL (e.g., `http://localhost:8888/?token=...`) and open it in your browser.
+6. Navigate to the `notebooks` directory within the Jupyter interface.
+7. Open `ipywidgets.ipynb` and run the cells to interact with the project.
+
+### Option 2: Running on a Local Machine
+
+If you prefer to run the project natively without Docker, follow these steps:
+
+1. Make sure you have ROS2, Python, and the necessary dependencies (SAM2, DeepLabV3, `evo`) installed.
+2. Install Jupyter and the required Python packages:
+   ```bash
+   pip install jupyter ipywidgets matplotlib numpy pandas
+   ```
+3. Navigate to the project workspace:
+   ```bash
+   cd src/notebooks
+   ```
+4. Start the Jupyter Notebook server:
+   ```bash
+   jupyter notebook
+   ```
+5. A browser window will open automatically. Open `ipywidgets.ipynb`.
+6. Run the cells sequentially to start the SLAM pipelines, load the trajectory outputs (e.g., from `KeyFrameTrajectory.txt`), and generate the evaluation plots.
