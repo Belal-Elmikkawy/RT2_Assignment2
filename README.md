@@ -78,57 +78,13 @@ cd src/slam_fusion/scripts
 ./evaluate_trajectory.sh /ros2_ws/orbslam3_sam2_estimate.txt /ros2_ws/gazebo_groundtruth.txt
 ```
 
-## Quantitative Results & Algorithm Comparison (Gazebo Simulation)
+## Running the Jupyter Notebooks
 
-The following metrics represent the Absolute Pose Error (APE) and Relative Pose Error (RPE) Root Mean Square Error (RMSE) in meters.
+This repository includes Jupyter Notebooks for interactive data analysis and visualization of the SLAM algorithms' performance. The notebooks process the trajectory data and compute error metrics dynamically.
 
-### 1. Cartographer (2D LIDAR SLAM)
-Cartographer relies primarily on 2D LIDAR (`/scan`) rather than visual features, making it highly robust in simulation environments lacking rich visual textures.
+### How to use the notebooks
 
-| Perception Model | APE RMSE (m) | RPE RMSE (m) |
-| :--- | :--- | :--- |
-| **SAM2** | 0.139 | 0.048 |
-| **DeepLabV3** | 0.019 | 0.020 |
-
-**Cartographer + SAM2 Trajectory Plot**
-<img src="results/cartographer_sam2_estimate_ape_raw.png" width="600" alt="Cartographer SAM2" />
-
-**Cartographer + DeepLabV3 Trajectory Plot**
-<img src="results/cartographer_deeplabv3_estimate_ape_raw.png" width="600" alt="Cartographer DeepLabV3" />
-
----
-
-### 2. ORB-SLAM3 (Visual SLAM)
-ORB-SLAM3 relies exclusively on camera data. In textureless simulation environments, visual tracking can struggle, making semantic masks critical for filtering dynamic or featureless zones.
-
-| Perception Model | APE RMSE (m) | RPE RMSE (m) |
-| :--- | :--- | :--- |
-| **SAM2** | 0.921 | 0.688 |
-| **DeepLabV3** | 0.446 | 0.162 |
-
-**ORB-SLAM3 + SAM2 Trajectory Plot**
-<img src="results/orbslam3_sam2_estimate_ape_raw.png" width="600" alt="ORB-SLAM3 SAM2" />
-
-**ORB-SLAM3 + DeepLabV3 Trajectory Plot**
-<img src="results/orbslam3_deeplabv3_estimate_ape_raw.png" width="600" alt="ORB-SLAM3 DeepLabV3" />
-
----
-
-### 3. RTAB-Map (RGB-D SLAM)
-RTAB-Map fuses RGB-D visual odometry with loop closure detection. Like ORB-SLAM3, it relies heavily on visual features, making performance sensitive to the segmentation mask quality.
-
-| Perception Model | APE RMSE (m) | RPE RMSE (m) |
-| :--- | :--- | :--- |
-| **SAM2** | 1.350 | 1.845 |
-| **DeepLabV3** | 0.783 | 1.275 |
-
-**RTAB-Map + SAM2 Trajectory Plot**
-<img src="results/rtabmap_sam2_estimate_ape_raw.png" width="600" alt="RTAB-Map SAM2" />
-
-**RTAB-Map + DeepLabV3 Trajectory Plot**
-<img src="results/rtabmap_deeplabv3_estimate_ape_raw.png" width="600" alt="RTAB-Map DeepLabV3" />
-
-## Analysis & Conclusion
-1. **LIDAR vs Visual SLAM:** **Cartographer** drastically outperformed both visual SLAM algorithms in the Gazebo environment. Because Gazebo walls often lack sufficient texture for robust visual feature extraction, the LIDAR scanner provided a massive advantage.
-2. **DeepLabV3 vs SAM2:** Interestingly, across both visual SLAM algorithms, **DeepLabV3** resulted in lower drift (better RMSE) than SAM2. This likely indicates that DeepLabV3's segmentation boundaries masked out confusing visual artifacts more effectively, or SAM2's high-resolution zero-shot masks were too aggressive and masked out viable tracking features. 
-3. **Robustness:** Because Cartographer ignores the camera for its primary odometry, variations in its error between SAM2 and DeepLabV3 are attributed purely to human teleoperation variations during the simulation runs.
+1. Make sure you have Jupyter installed (or use VS Code with the Jupyter extension).
+2. Navigate to the `notebooks` directory.
+3. Open `ipywidgets.ipynb` to access the interactive data visualization.
+4. Run the cells sequentially to load the trajectory outputs (e.g., from `KeyFrameTrajectory.txt`) and generate the evaluation plots.
