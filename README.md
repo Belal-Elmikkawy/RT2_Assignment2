@@ -1,4 +1,4 @@
-# Subgroup I1: SAM‑Enhanced 3D Semantic SLAM
+# SAM‑Enhanced 3D Semantic SLAM
 
 ## About the Project & Problem Solved
 Traditional SLAM (Simultaneous Localization and Mapping) systems excel at creating geometric maps of an environment but lack semantic understanding. This restricts robots from performing high-level tasks such as finding specific objects or understanding scene context.
